@@ -226,3 +226,80 @@ def test_invalid_limits_never_cross_the_network_or_echo_their_contents():
         assert requests == []
 
     asyncio.run(run())
+
+
+def test_client_command_uses_private_token_file_without_token_environment(tmp_path):
+    token_file = tmp_path / "token"
+    token_file.write_text(TOKEN)
+    token_file.chmod(0o600)
+    env = {**os.environ}
+    env.pop("ICD10_DEMO_TOKEN", None)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "icd10_mcp.reference_client",
+            "--url",
+            URL,
+            "--public-terminology",
+            "--token-file",
+            str(token_file),
+        ],
+        input=json.dumps(
+            {"operation": "lookup", "query": "avery@example.invalid", "service_date": "2026-04-01"}
+        ),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stdout)["status"] == "privacy_blocked"
+    assert TOKEN not in result.stdout + result.stderr
+    assert "avery@example.invalid" not in result.stdout + result.stderr
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX private-file permission checks")
+def test_client_rejects_unsafe_token_files_without_echoing_paths_or_values(tmp_path):
+    private = tmp_path / "PRIVATE-good-token"
+    private.write_text(TOKEN)
+    private.chmod(0o600)
+    shared = tmp_path / "PRIVATE-shared-token"
+    shared.write_text(TOKEN)
+    shared.chmod(0o640)
+    link = tmp_path / "PRIVATE-symlink-token"
+    link.symlink_to(private)
+    large = tmp_path / "PRIVATE-large-token"
+    large.write_text(TOKEN + " " * 5000)
+    large.chmod(0o600)
+    for path in (shared, link, large, private.name, tmp_path, tmp_path / "PRIVATE-missing"):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "icd10_mcp.reference_client",
+                "--url",
+                URL,
+                "--public-terminology",
+                "--token-file",
+                str(path),
+            ],
+            input=json.dumps(
+                {
+                    "operation": "lookup",
+                    "query": "avery@example.invalid",
+                    "service_date": "2026-04-01",
+                }
+            ),
+            env={**os.environ},
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=tmp_path,
+        )
+        assert result.returncode == 2
+        assert json.loads(result.stdout)["status"] == "invalid_request"
+        assert TOKEN not in result.stdout + result.stderr
+        assert "PRIVATE-" not in result.stdout + result.stderr
+        assert "avery@example.invalid" not in result.stdout + result.stderr

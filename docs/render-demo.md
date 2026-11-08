@@ -36,7 +36,9 @@ upgrade or unrelated-service change is authorized.
   Samples are not peak RSS, complete file-cache accounting or a capacity guarantee.
 
 For arbitrary public terminology, use `icd10_mcp.reference_client` as documented
-in the README. It screens before network initialization, blocks suspicious inputs
+in the [Python/terminal and Claude Desktop connection guide](connect.md).
+The guide uses a private token file and needs no local catalogs or models.
+It screens before network initialization, blocks suspicious inputs
 without echoing them, and sends a public release anchor instead of the exact date.
 The two hosted tools also screen their code/phrase inputs as defense in depth.
 These checks are best effort, not PII certification; server checks happen after

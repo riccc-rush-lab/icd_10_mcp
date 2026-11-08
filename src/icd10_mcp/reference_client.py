@@ -17,6 +17,7 @@ from mcp.client.streamable_http import streamable_http_client
 from mcp.types import Implementation
 
 from .cli_safety import SafeArgumentParser
+from .client_config import load_token_file
 from .privacy import PRIVACY_NOTICE, blocked_codes, blocked_phrase, blocked_response
 from .releases import PROFILES
 
@@ -135,6 +136,9 @@ class ReferenceClient:
 def main():
     parser = SafeArgumentParser(description="Public terminology JSON on stdin; never patient data.")
     parser.add_argument("--url", required=True, help="Explicit HTTPS /mcp endpoint")
+    parser.add_argument(
+        "--token-file", help="Absolute private token-file path, never a token value"
+    )
     parser.add_argument("--public-terminology", action="store_true", required=True)
     args = parser.parse_args()
     for name in ("mcp", "httpx", "httpcore"):
@@ -155,7 +159,10 @@ def main():
         )
         if not request.keys() <= allowed:
             raise ValueError
-        client = ReferenceClient(args.url, os.environ["ICD10_DEMO_TOKEN"])
+        token = (
+            load_token_file(args.token_file) if args.token_file else os.environ["ICD10_DEMO_TOKEN"]
+        )
+        client = ReferenceClient(args.url, token)
         if operation == "lookup":
             limit = request.get("limit", 10)
             return await client.lookup(request["query"], request["service_date"], limit)

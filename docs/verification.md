@@ -14,15 +14,15 @@ Historical non-Git comparison baseline:
   FY2027: 74,879 assignable codes, 23,524 headers, 47,344 hierarchy nodes.
 - Core environment has no installed `openmed` package. Public lookup succeeds for
   April `E11.9` and FY2027-only `C78.31`; the new code is not returned for April.
-- Most recent full opt-in suite (2026-11-08): **221 passed in 155.73 seconds**;
-  the reference upgrade and deployment evidence are recorded below.
+- Most recent full opt-in suite (2026-11-08): **226 passed in 194.03 seconds**;
+  the connection handoff, reference upgrade and deployment evidence are recorded below.
 - Earlier full opt-in suite (2026-11-07): **205 passed in 101.63 seconds**, including both fresh
   corpus imports, partial-XML rejection, actual local model weights and MCP transports.
   This run followed local-only Render preparation and its 19 demo/build checks.
   The previous 186-test run covered the local-trial command and its eight CLI checks.
   The previous 178-test run followed the NLP audit fixes and shared model-policy refactor.
   The earlier 172-test run followed the importer fix and Starlette upgrade to 1.10.0.
-- Latest Ruff lint and formatting passed across all 44 files in `src`, `tests`, and `scripts`.
+- Latest Ruff lint and formatting passed across all 48 files in `src`, `tests`, and `scripts`.
 - The initial core dependency audit failed on Starlette advisories. The patched,
   regenerated `requirements/core.lock` audit now reports no known vulnerabilities.
   The separate OpenMed lock audit earlier in this build also reported no known
@@ -274,6 +274,51 @@ See `docs/render-demo.md` for the deployed configuration and remaining restricti
   Paid plans and billing settings were not changed. Shared free allowances,
   idle resume, sustained load, rotation, institutional auth and an independent
   security/clinical review remain outside this technical acceptance.
+
+## Connection handoff and continued functional checks, 2026-11-08
+
+- [Connection guide](connect.md) covers hosted access, Python/terminal and manual
+  Claude Desktop configuration. Public source does not grant hosted access; the
+  shared-secret service remains an operator-approved trusted-pilot demo.
+- A local stdio bridge uses the existing screened remote client, without local
+  catalogs or models. Its checked-in macOS configuration arguments were exercised
+  through a real subprocess and the official MCP SDK from an unrelated directory.
+  Identity, exactly two note-free tools, local blocking with zero HTTP requests,
+  release-anchor date handling, public lookup and selected-code validation pass.
+- Private-file credentials are bounded to 4 KiB. Public CLI guards cover an
+  absolute regular file, POSIX permissions, a symlink, oversized content, relative/
+  missing/directory paths and no secret/path-marker echo. Owner checks are
+  implemented, but a different-owner runtime case was not independently exercised.
+  Windows ACLs are not validated and Windows runtime acceptance remains untested.
+- File-based CLI admission and the bridge workflow were observed failing then
+  passing. A further real-stdio test reproduced malformed-argument identifier echo
+  from framework validation. Hosted and bridge transports now share the existing
+  raw-argument guard before coercion; wrong types and extra/note fields return
+  generic errors without echo or outbound requests. Startup and configuration
+  template guards that passed immediately are hardening, not extra observed reds.
+- Final full opt-in suite: **226 passed in 194.03 seconds**, with both fresh CDC
+  imports, actual optional model weights and transports. Default suite:
+  **202 passed, 24 skipped in 22.83 seconds**. Ruff lint/format pass across 48 files.
+- One additional **sequential functional check**, not another load benchmark,
+  completed **50 tool calls in 50.503 seconds**, concurrency one, within its
+  50-call/120-second bound. Forty cases checked 20 public assignable codes across
+  September 30 and October 1 against descriptions read independently from the
+  pinned CDC code text, not the service/database being tested.
+- That check also verified release IDs, hierarchy/provenance presence, poisoning
+  instructions, nonassignable `E11`, malformed `A00..1`, selected-code validity,
+  the `C78.31` release boundary, and two actual hosted calls through the stdio
+  bridge. Its stderr did not contain the token. Inputs were public terminology only.
+  Private evidence is in `.scratch/reference-upgrade-20261108/connection-*` and
+  `real-code-expected.json`; credentials and local reports are not published.
+- The hosted application remains deployment `dep-dbocb63l550s739ah3cg`, commit
+  `e1090e6`; automatic deploys are off. This handoff does not redeploy, change auth,
+  create resources, repeat load testing or change billing.
+- Fresh independent Standards and Spec reviews of the staged connection changes
+  against `7c9bccc` each returned zero actionable findings. These are focused
+  implementation reviews, not security or clinical certification.
+- Actual Claude Desktop UI/version acceptance remains a manual gate. Local bridge
+  screening cannot undo text already processed by a chat provider. No patient-data,
+  clinical, institutional-auth or broader security acceptance is implied.
 
 ## Observed red-to-green slices
 

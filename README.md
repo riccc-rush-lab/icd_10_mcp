@@ -19,12 +19,15 @@ See [optional OpenMed setup](docs/local-openmed.md),
 Technical check results and remaining gates: [verification](docs/verification.md).
 Step-by-step setup and acceptance: [local trial guide](docs/local-trial.md).
 Authenticated terminology-only hosting trial: [Render demo](docs/render-demo.md).
+**Connecting as a user?** Follow [Python/terminal and Claude Desktop setup](docs/connect.md).
+The hosted path needs no local catalogs or models; access requires operator approval.
 For remote lookup, use the [screened local client](#screened-remote-reference-client),
 not a patient note in a cloud chat.
 
 **Research prototype. Not production- or PHI-ready. Results are coder-review
 candidates, never final assignments. Do not enter patient data.** No diagnosis
-inference, claim submission or remote LLM. Core lookup runs locally or in the
+inference, claim submission or application-side LLM calls. Cloud MCP hosts can
+process conversations before a tool runs. Core lookup runs locally or in the
 explicitly configured hosting demo; optional OpenMed stays local.
 
 ## Quick start
@@ -171,14 +174,16 @@ Hosted screening happens after receipt. Arbitrary MCP clients, cloud chats,
 platform/proxy logs and a caller's debug logging are outside this client's control.
 The application cannot promise that PII is never transmitted.
 
-Set `ICD10_DEMO_TOKEN` securely in the local environment, not in command arguments.
+Use a private token file as described in the [connection guide](docs/connect.md).
+Alternatively set `ICD10_DEMO_TOKEN` securely in the local environment, not in command arguments.
 Verified Free endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
 It requires the replacement service's shared secret, not the old demo's token.
 See the Render guide for access and cold-start limits.
 
 ```sh
 .venv/bin/python -m icd10_mcp.reference_client \
-  --url https://icd10-reference-mcp.onrender.com/mcp --public-terminology <<'JSON'
+  --url https://icd10-reference-mcp.onrender.com/mcp \
+  --token-file /absolute/path/to/private/token --public-terminology <<'JSON'
 {"operation":"lookup","query":"pneumonia","service_date":"2026-10-01","limit":5}
 JSON
 ```
