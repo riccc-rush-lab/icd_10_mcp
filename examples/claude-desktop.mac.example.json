@@ -4,8 +4,7 @@
       "command": "/Users/YOUR_USER/Projects/icd_10_mcp/.venv/bin/python",
       "args": ["-m", "icd10_mcp.reference_bridge"],
       "env": {
-        "ICD10_REFERENCE_URL": "https://icd10-reference-mcp.onrender.com/mcp",
-        "ICD10_REFERENCE_TOKEN_FILE": "/Users/YOUR_USER/.config/icd10-reference/token"
+        "ICD10_REFERENCE_URL": "https://icd10-reference-mcp.onrender.com/mcp"
       }
     }
   }

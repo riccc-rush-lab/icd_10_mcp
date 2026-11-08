@@ -25,7 +25,7 @@ from .releases import PROFILES
 class ReferenceClient:
     """Screen locally before opening a connection; never use for real patient data."""
 
-    def __init__(self, url: str, token: str, *, transport=None):
+    def __init__(self, url: str, token: str | None = None, *, transport=None):
         try:
             target = urlsplit(url)
             if (
@@ -40,7 +40,10 @@ class ReferenceClient:
                 or target.fragment
                 or target.path != "/mcp"
                 or (target.port is not None and not 1 <= target.port <= 65535)
-                or not re.fullmatch(r"[A-Za-z0-9._~+/-]{32,256}={0,2}", token)
+                or (
+                    token is not None
+                    and not re.fullmatch(r"[A-Za-z0-9._~+/-]{32,256}={0,2}", token)
+                )
             ):
                 raise ValueError
         except (ValueError, TypeError, AttributeError):
@@ -94,7 +97,7 @@ class ReferenceClient:
         arguments = {**arguments, "service_date": anchor}
         try:
             async with httpx.AsyncClient(
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers={"Authorization": f"Bearer {self.token}"} if self.token is not None else {},
                 transport=self.transport,
                 timeout=90,
                 follow_redirects=False,
@@ -136,8 +139,12 @@ class ReferenceClient:
 def main():
     parser = SafeArgumentParser(description="Public terminology JSON on stdin; never patient data.")
     parser.add_argument("--url", required=True, help="Explicit HTTPS /mcp endpoint")
-    parser.add_argument(
+    credentials = parser.add_mutually_exclusive_group()
+    credentials.add_argument(
         "--token-file", help="Absolute private token-file path, never a token value"
+    )
+    credentials.add_argument(
+        "--anonymous", action="store_true", help="Send no credential, ignoring inherited tokens"
     )
     parser.add_argument("--public-terminology", action="store_true", required=True)
     args = parser.parse_args()
@@ -160,7 +167,13 @@ def main():
         if not request.keys() <= allowed:
             raise ValueError
         token = (
-            load_token_file(args.token_file) if args.token_file else os.environ["ICD10_DEMO_TOKEN"]
+            None
+            if args.anonymous
+            else (
+                load_token_file(args.token_file)
+                if args.token_file
+                else os.environ["ICD10_DEMO_TOKEN"]
+            )
         )
         client = ReferenceClient(args.url, token)
         if operation == "lookup":

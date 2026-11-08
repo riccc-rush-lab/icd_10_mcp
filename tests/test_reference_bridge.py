@@ -19,15 +19,22 @@ from icd10_mcp.demo import create_demo_app
 TOKEN = "synthetic-demo-token-not-a-real-secret-123456"
 
 
-@pytest.fixture
-def reference_endpoint(catalog_path):
+@pytest.fixture(params=[False, True], ids=["protected", "anonymous"])
+def reference_endpoint(catalog_path, request):
     records = []
-    app = create_demo_app(catalog_path, token=TOKEN, hostname="127.0.0.1")
+    public_access = request.param
+    app = create_demo_app(
+        catalog_path, token=TOKEN, hostname="127.0.0.1", public_access=public_access
+    )
 
     async def observed(scope, receive, send):
         if scope["type"] != "http":
             return await app(scope, receive, send)
-        record = {"path": scope["path"], "body": b""}
+        record = {
+            "path": scope["path"],
+            "body": b"",
+            "authorization": dict(scope["headers"]).get(b"authorization"),
+        }
         records.append(record)
 
         async def received():
@@ -51,7 +58,7 @@ def reference_endpoint(catalog_path):
                     break
                 time.sleep(0.01)
             assert server.started
-            yield f"http://127.0.0.1:{port}/mcp", records
+            yield f"http://127.0.0.1:{port}/mcp", records, public_access
         finally:
             server.should_exit = True
             thread.join(timeout=5)
@@ -61,7 +68,7 @@ def reference_endpoint(catalog_path):
 def test_screened_stdio_bridge_blocks_locally_and_forwards_public_tools(
     tmp_path, reference_endpoint
 ):
-    url, records = reference_endpoint
+    url, records, public_access = reference_endpoint
     token_file = tmp_path / "token"
     token_file.write_text(TOKEN)
     token_file.chmod(0o600)
@@ -70,16 +77,17 @@ def test_screened_stdio_bridge_blocks_locally_and_forwards_public_tools(
             Path(__file__).resolve().parents[1] / "examples/claude-desktop.mac.example.json"
         ).read_text()
     )["mcpServers"]["icd10-reference"]
-    assert set(example["env"]) == {"ICD10_REFERENCE_URL", "ICD10_REFERENCE_TOKEN_FILE"}
+    assert set(example["env"]) == {"ICD10_REFERENCE_URL"}
     example["command"] = sys.executable
     example["env"].update(
         {
             "ICD10_REFERENCE_URL": url,
-            "ICD10_REFERENCE_TOKEN_FILE": str(token_file),
             "ICD10_CATALOG": str(tmp_path / "must-not-need-a-catalog.sqlite3"),
             "PYTHONDONTWRITEBYTECODE": "1",
         }
     )
+    if not public_access:
+        example["env"]["ICD10_REFERENCE_TOKEN_FILE"] = str(token_file)
     parameters = StdioServerParameters(**example, cwd=str(tmp_path))
     with tempfile.TemporaryFile(mode="w+") as errors:
 
@@ -148,6 +156,8 @@ def test_screened_stdio_bridge_blocks_locally_and_forwards_public_tools(
     assert records
     assert all(b"2026-09-30" not in item["body"] for item in records)
     assert all(b"avery@example.invalid" not in item["body"] for item in records)
+    if public_access:
+        assert all(item["authorization"] is None for item in records)
 
 
 def test_bridge_startup_rejects_bad_configuration_without_echoing_secrets(tmp_path):
@@ -185,6 +195,5 @@ def test_desktop_examples_use_absolute_paths_without_embedded_credentials():
         ]["icd10-reference"]
         assert path_type(entry["command"]).is_absolute()
         assert entry["args"] == ["-m", "icd10_mcp.reference_bridge"]
-        assert set(entry["env"]) == {"ICD10_REFERENCE_URL", "ICD10_REFERENCE_TOKEN_FILE"}
+        assert set(entry["env"]) == {"ICD10_REFERENCE_URL"}
         assert entry["env"]["ICD10_REFERENCE_URL"] == "https://icd10-reference-mcp.onrender.com/mcp"
-        assert path_type(entry["env"]["ICD10_REFERENCE_TOKEN_FILE"]).is_absolute()

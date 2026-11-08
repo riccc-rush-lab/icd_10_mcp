@@ -18,8 +18,9 @@ from icd10_mcp.service import ICDService
 
 
 @pytest.mark.corpus
+@pytest.mark.parametrize("public_access", [False, True], ids=["protected", "public"])
 def test_source_only_demo_build_prepares_verified_read_only_catalogs(
-    tmp_path, cdc_downloads, pytestconfig
+    tmp_path, cdc_downloads, pytestconfig, public_access
 ):
     fy2027 = pytestconfig.getoption("--fy2027-downloads")
     if fy2027 is None:
@@ -62,7 +63,10 @@ def test_source_only_demo_build_prepares_verified_read_only_catalogs(
         "ICD10_DEMO_HOSTNAME": "127.0.0.1",
         "ICD10_DEMO_TOKEN": token,
         "PORT": str(port),
+        "ICD10_PUBLIC_ACCESS": "1" if public_access else "0",
     }
+    if public_access:
+        env.pop("ICD10_DEMO_TOKEN", None)
     process = subprocess.Popen(
         [sys.executable, "-m", "icd10_mcp.demo"],
         env=env,
@@ -81,7 +85,36 @@ def test_source_only_demo_build_prepares_verified_read_only_catalogs(
                     time.sleep(0.05)
             else:
                 raise AssertionError("Demo startup timed out")
-            assert client.post("/mcp", json={}).status_code == 401
+            assert client.post("/mcp", json={}).status_code == (406 if public_access else 401)
+        if public_access:
+            checked = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "icd10_mcp.reference_client",
+                    "--url",
+                    f"http://127.0.0.1:{port}/mcp",
+                    "--anonymous",
+                    "--public-terminology",
+                ],
+                env=env,
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                input=json.dumps(
+                    {
+                        "operation": "lookup",
+                        "query": "C78.31",
+                        "service_date": "2026-10-01",
+                    }
+                ),
+            )
+            assert checked.returncode == 0, checked.stdout + checked.stderr
+            result = json.loads(checked.stdout)
+            assert result["candidates"][0]["code"] == "C78.31"
+            assert result["release"]["id"] == "icd10cm-2026-10-01"
+            return
         checked = subprocess.run(
             [
                 sys.executable,
@@ -104,7 +137,7 @@ def test_source_only_demo_build_prepares_verified_read_only_catalogs(
     finally:
         process.terminate()
         stdout, stderr = process.communicate(timeout=10)
-    assert token not in stdout + stderr
+        assert token not in stdout + stderr
 
 
 def test_failed_external_source_download_never_publishes_a_ready_configuration(

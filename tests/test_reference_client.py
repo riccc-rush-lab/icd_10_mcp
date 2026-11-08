@@ -19,10 +19,34 @@ class RecordingHTTP(httpx.AsyncBaseTransport):
     def __init__(self, app):
         self.inner = httpx.ASGITransport(app=app)
         self.requests = []
+        self.authorization_headers = []
 
     async def handle_async_request(self, request):
         self.requests.append((str(request.url), bytes(request.content)))
+        self.authorization_headers.append(request.headers.get("authorization"))
         return await self.inner.handle_async_request(request)
+
+
+def test_anonymous_screened_client_sends_no_credentials_and_keeps_date_local(catalog_path):
+    from icd10_mcp.reference_client import ReferenceClient
+
+    async def run():
+        app = create_demo_app(catalog_path, hostname="trial.onrender.com", public_access=True)
+        transport = RecordingHTTP(app)
+        client = ReferenceClient(URL, transport=transport)
+        async with app.router.lifespan_context(app):
+            blocked = await client.lookup("avery@example.invalid", "2026-09-30")
+            assert blocked["status"] == "privacy_blocked"
+            assert transport.requests == []
+            result = await client.lookup("E11.9", "2026-09-30")
+            assert result["candidates"][0]["code"] == "E11.9"
+            assert result["service_date"] == "2026-09-30"
+            assert result["privacy"]["remote_service_date"] == "2026-04-01"
+            assert transport.requests
+            assert all(value is None for value in transport.authorization_headers)
+            assert all(b"2026-09-30" not in body for _, body in transport.requests)
+
+    asyncio.run(run())
 
 
 def test_local_client_blocks_email_before_network_but_preserves_phrase_lookup(catalog_path):
@@ -205,6 +229,36 @@ def test_client_command_reads_stdin_and_blocks_without_echoing_private_text():
     assert invalid.returncode == 2
     assert "PRIVATE-CLI-MARKER" not in invalid.stdout + invalid.stderr
     assert "avery@example.invalid" not in invalid.stdout + invalid.stderr
+
+
+def test_anonymous_cli_ignores_inherited_credentials_and_screens_before_network(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "icd10_mcp.reference_client",
+            "--url",
+            URL,
+            "--public-terminology",
+            "--anonymous",
+        ],
+        env={**os.environ, "ICD10_DEMO_TOKEN": "PRIVATE-invalid-inherited-token"},
+        input=json.dumps(
+            {
+                "operation": "lookup",
+                "query": "avery@example.invalid",
+                "service_date": "2026-09-30",
+            }
+        ),
+        capture_output=True,
+        text=True,
+        timeout=10,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stdout)["status"] == "privacy_blocked"
+    assert "avery@example.invalid" not in result.stdout + result.stderr
+    assert "PRIVATE-invalid-inherited-token" not in result.stdout + result.stderr
 
 
 def test_invalid_limits_never_cross_the_network_or_echo_their_contents():

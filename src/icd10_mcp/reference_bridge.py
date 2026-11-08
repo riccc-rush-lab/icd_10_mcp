@@ -18,7 +18,7 @@ from .public_mcp import PublicTerminologyMCP
 from .reference_client import ReferenceClient
 
 
-def create_bridge(url: str, token: str) -> FastMCP:
+def create_bridge(url: str, token: str | None = None) -> FastMCP:
     client = ReferenceClient(url, token)
     bridge = PublicTerminologyMCP(
         "ICD10 Reference MCP (screened bridge)",
@@ -57,9 +57,10 @@ def create_bridge(url: str, token: str) -> FastMCP:
 
 def main():
     try:
+        token_file = os.environ.get("ICD10_REFERENCE_TOKEN_FILE")
         bridge = create_bridge(
             os.environ["ICD10_REFERENCE_URL"],
-            load_token_file(os.environ["ICD10_REFERENCE_TOKEN_FILE"]),
+            load_token_file(token_file) if token_file is not None else None,
         )
     except Exception:
         print(

@@ -1,26 +1,48 @@
 # Connect to ICD10 Reference MCP
 
-For **public terminology and synthetic examples only**. Not production-, clinical-
-or PHI-ready. Never enter patient data, even to test the privacy screen.
+**Public terminology and synthetic examples only.** Not production-, clinical- or
+PHI-ready. Never enter patient data, even to test the privacy screen.
 
-Two ways to use the hosted reference service:
+**Deployment status:** public no-login mode is implemented in source, but hosted
+activation is pending deployment and live verification. Until then, the existing
+endpoint still requires its operator-issued token. The no-login instructions below
+apply after activation. See [verification](verification.md).
 
-- Python or terminal: the screened local client.
-- Claude Desktop: a local stdio bridge to that same client.
+Endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
+This is an MCP interface, not a browser search page.
 
-Neither requires CDC downloads, a local catalog, OpenMed, or model weights.
-For fully local lookup instead, follow the [local trial guide](local-trial.md).
+## Option 1: connect by URL, no local installation
 
-## 1. Get access and install
+After public-mode activation, no signup, API key or OAuth client is needed.
 
-Source: <https://github.com/riccc-rush-lab/icd_10_mcp>.
-Hosted MCP endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
+1. In Claude, open **Customize → Connectors → Add custom connector**. Organization
+   owners may need to add it first under Organization settings.
+2. Name it **ICD10 Reference MCP**.
+3. Enter `https://icd10-reference-mcp.onrender.com/mcp`.
+4. Choose **No sign-in**, if authentication settings appear. Leave credentials
+   and request headers empty. Enable the connector for your conversation.
+5. Ask: “Use ICD10 Reference MCP to look up public code E11.9 for example date
+   2026-10-01.” Inspect that Claude actually calls `phrase_search`, not just answers
+   from memory. Expect `Type 2 diabetes mellitus without complications`.
 
-**Public source is not public hosted access.** Ask the service operator for
-approved trusted-pilot access and obtain the replacement service's token through
-a private channel. There is no self-service signup or per-user OAuth. Do not put
-the token in GitHub issues, chat prompts, screenshots, command arguments, or this repo.
-The old demo's token does not work with the replacement endpoint.
+UI labels/availability depend on the app version, plan and organization policy.
+Actual Claude UI acceptance remains manual; official-SDK checks are not GUI checks.
+
+**This connection originates from Claude's cloud and bypasses our local preflight.**
+Server screening occurs after receipt. Conversation text can already have been
+processed by Claude before a tool call. Neither no-login access nor screening makes
+patient-derived input acceptable. Direct clients send the date they supply unchanged.
+Only use public example dates and terminology.
+
+## Option 2: screened Python, terminal or local stdio bridge
+
+The optional local client screens before connecting and substitutes the release's
+public start date on the wire, restoring your requested date locally. It can miss
+identifiers or block legitimate terms; it does not guarantee PII absence. It rejects
+rather than silently redacts clinical meaning.
+
+No CDC downloads, local catalog, OpenMed or model weights are required.
+For entirely local lookup, use the [local trial guide](local-trial.md).
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
 
@@ -30,156 +52,149 @@ cd icd_10_mcp
 uv sync --frozen --python 3.13
 ```
 
-Keep the checkout and its `.venv` in place; the desktop configuration will point
-to that Python executable. No global package installation is needed.
+### Terminal
 
-## 2. Store the token privately
-
-On macOS/Linux, create a private directory:
-
-```sh
-mkdir -p "$HOME/.config/icd10-reference"
-chmod 700 "$HOME/.config/icd10-reference"
-```
-
-Use a trusted local editor to save the operator-provided token as
-`$HOME/.config/icd10-reference/token`, then:
-
-```sh
-chmod 600 "$HOME/.config/icd10-reference/token"
-```
-
-Use one plain ASCII token line, without quotes or a byte-order mark.
-The file must be an **absolute-path, regular, non-symlink file**, at most 4 KiB.
-On POSIX it must belong to your user and have no group/other permission bits
-(`600` or `400`). Do not commit or share it.
-
-On Windows, use a private file such as
-`C:\Users\YOUR_USER\AppData\Roaming\icd10-reference\token`.
-Restrict its ACL to your user under your organization's policy before using it.
-**The loader does not validate Windows ACLs.** Windows runtime/desktop acceptance
-has not been performed; the Windows example is a configuration template.
-
-## 3. Check from the terminal
-
-From the checkout on macOS/Linux:
+After public activation, from the checkout on macOS/Linux:
 
 ```sh
 .venv/bin/python -m icd10_mcp.reference_client \
   --url https://icd10-reference-mcp.onrender.com/mcp \
-  --token-file "$HOME/.config/icd10-reference/token" \
-  --public-terminology <<'JSON'
+  --anonymous --public-terminology <<'JSON'
 {"operation":"lookup","query":"pneumonia","service_date":"2026-10-01","limit":5}
 JSON
 ```
 
-Expect a `candidates` response containing `J18.9`,
-`Pneumonia, unspecified organism`, for `icd10cm-2026-10-01`.
-The first request may wait for the Free service to wake.
-No note field is accepted. For selected-code validation, replace stdin JSON with:
+Expect `J18.9`, `Pneumonia, unspecified organism`, for `icd10cm-2026-10-01`.
+For validation, replace stdin JSON with:
 
 ```json
 {"operation":"validate","codes":["E11.9"],"service_date":"2026-10-01"}
 ```
 
-Expect `results[0].code_validity.status` to be `valid`. Exit `2` indicates a
-blocked/invalid request or unavailable service. The terminal client also retains
-`ICD10_DEMO_TOKEN` environment support when `--token-file` is omitted, but the
-private file is preferred for this handoff.
+Expect `results[0].code_validity.status` to be `valid`. No note field is accepted.
+`--anonymous` sends no credential, even if an old token is in the environment.
+Exit `2` means blocked/invalid input or unavailable service.
 
-Python callers, using the same virtual environment:
+### Python
+
+Use the same virtual environment:
 
 ```python
 import asyncio
 import json
 
-from icd10_mcp.client_config import load_token_file
 from icd10_mcp.reference_client import ReferenceClient
 
-client = ReferenceClient(
-    "https://icd10-reference-mcp.onrender.com/mcp",
-    load_token_file("/absolute/path/to/private/token"),
-)
+client = ReferenceClient("https://icd10-reference-mcp.onrender.com/mcp")
 print(json.dumps(asyncio.run(client.lookup("E11.9", "2026-10-01")), indent=2))
 # Also available: await client.validate(["E11.9"], "2026-10-01")
 ```
 
-## 4. Configure Claude Desktop manually
+### Claude Desktop local bridge
 
-**A local bridge does not make Claude conversations local.** Text entered into
-Claude can be processed by its provider before any MCP tool call. Screening cannot
-undo that transmission. Use only public/synthetic terminology in the conversation,
-not patient-derived queries, identifiers, notes, or actual encounter details.
+**A local bridge does not make Claude conversations local.** The chat provider can
+process text before MCP. Public/synthetic examples only, never notes or encounters.
 
-Use your approved Claude Desktop local-MCP configuration workflow. Builds with
-**Settings → Developer → Edit Config** expose the JSON file there; UI labels vary
-by version. Managed installations can prohibit local servers. Follow your admin's
-policy, do not bypass it. This repo does not provide a desktop extension bundle.
+Use your approved local-MCP configuration workflow. Builds with **Settings →
+Developer → Edit Config** expose the JSON file there; labels vary. Managed apps
+may prohibit local servers. Follow policy, do not bypass it.
 
-Usual configuration locations:
+Usual configuration files:
 
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-Templates:
+Templates: [macOS](../examples/claude-desktop.mac.example.json),
+[Windows](../examples/claude-desktop.windows.example.json).
 
-- [macOS example](../examples/claude-desktop.mac.example.json)
-- [Windows example](../examples/claude-desktop.windows.example.json)
+Replace `YOUR_USER` and the checkout location with real **absolute paths**.
+Use `.venv/bin/python` on macOS or `.venv\Scripts\python.exe` on Windows.
+No `~`, `${HOME}`, relative paths or activated-shell aliases inside JSON.
+Keep the checkout and environment in place. The public templates contain no token.
 
-Replace `YOUR_USER` and the checkout location with **real absolute paths**.
-The Python executable is `.venv/bin/python` on macOS, `.venv\Scripts\python.exe`
-on Windows. Do not use `~`, `${HOME}`, relative paths or an activated-shell alias
-inside the JSON. The token-file path belongs in `env`; **the token value does not**.
+Merge only `icd10-reference` into the existing `mcpServers` object. Preserve other
+servers and preferences. Validate JSON, save, fully quit/reopen Claude, then approve
+the tools. No installed settings are changed automatically. This is manual stdio
+configuration, not a packaged desktop extension.
 
-Merge only the `icd10-reference` entry into your existing `mcpServers` object.
-Preserve other servers and unrelated settings. If the file does not exist, the
-whole template is a starting point. Validate JSON, save, fully quit and reopen
-Claude Desktop, then enable/approve the server through the app's tool controls.
-No installed app settings are modified by this repository.
-
-Expected server: **ICD10 Reference MCP (screened bridge)**. Exactly two tools:
+Expected bridge identity: **ICD10 Reference MCP (screened bridge)**.
+Both the direct server and bridge expose exactly these read-only tools:
 
 | Tool | Inputs |
 | --- | --- |
 | `phrase_search` | `query`, `service_date`, optional `limit` (1–25) |
 | `validate_selected_codes` | `codes`, `service_date` |
 
-Use a synthetic/public request such as “Look up public code E11.9 for the example
-date 2026-10-01 using ICD10 Reference MCP.” Inspect that the app actually calls
-`phrase_search`; an uncited model answer is not a connection test.
-Expect `Type 2 diabetes mellitus without complications`.
+Official-SDK subprocess configuration is tested on macOS. Windows templates are
+syntax/path examples, not Windows runtime or GUI acceptance.
 
-**Acceptance boundary:** official-SDK subprocess negotiation, these configuration
-arguments, and live bridge calls have been checked on macOS. Actual Claude Desktop
-UI/version behavior still requires this manual acceptance check. No GUI compatibility
-or organization policy approval is claimed.
+## Compatibility: token-protected deployments
 
-## Troubleshooting and limits
+Protected mode remains the server default. Public mode requires the operator to
+explicitly set `ICD10_PUBLIC_ACCESS=1` and deploy. A `401` can mean it is not active
+or has been rolled back; there is no automatic signup.
 
-- **Startup failure:** check absolute Python/token paths, private file permissions,
-  ownership, file size and token format. A generic error deliberately omits values.
-  The executable must come from the installed checkout, not system Python.
-- **No tools:** check valid JSON, preserve the existing config, restart fully, and
-  confirm local-MCP access is permitted. A bridge launched in a terminal normally
-  waits for protocol messages; it is not an interactive shell or a browser page.
-- **`remote_unavailable`:** check network access and the operator-issued token;
-  the Free service can sleep. Anonymous readiness is at
-  <https://icd10-reference-mcp.onrender.com/readyz>. Readiness does not verify your token.
-  Do not paste credentials or raw debug logs into support requests.
-- **`privacy_blocked`:** do not bypass the screen. Use an independently chosen
-  public code/short terminology phrase, not redacted patient text.
-- **Invalid date:** supported examples are 2026-04-01 through 2027-09-30 across
-  two releases. Dates are required; there is no current-date default or fallback.
-- The screen is best effort and can both miss identifiers and block legitimate terms.
-  It rejects rather than redacts. It does not establish PII absence or patient-data safety.
-- The exact requested date is replaced on the wire with the release's public start
-  date, then restored locally. This does not make patient-derived input acceptable.
-- Hosted screening occurs after receipt. Arbitrary clients, desktop conversations,
-  provider/proxy logs and debug logging remain outside the screen's control.
-- Shared-secret trusted pilots are not institution-ready authentication, a production
-  SLA, or clinical coding approval. Review all results and inherited instructions.
+For a protected deployment, obtain its token privately from its operator.
+Replace `--anonymous` with `--token-file /absolute/path/to/private/token`.
+The CLI also retains `ICD10_DEMO_TOKEN` environment support without those flags.
 
-See [verification](verification.md) and [hosting/access limits](render-demo.md).
-First-party configuration references:
-[MCP local server guide](https://modelcontextprotocol.io/docs/2026-07-28/develop/connect-local-servers)
-and [Claude local-server help](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop).
+For the bridge, add `ICD10_REFERENCE_TOKEN_FILE` to its `env` with the absolute file
+path, never the token value. Omit that variable entirely for anonymous access.
+Python can pass `load_token_file(...)` from `icd10_mcp.client_config` as the second
+`ReferenceClient` argument.
+
+Use an absolute regular, non-symlink file, at most 4 KiB, containing one ASCII token
+line without quotes/BOM. On POSIX, it must belong to your user with no group/other
+permission bits (`chmod 600` or `400`); use a private directory. Windows requires
+manual ACL restriction; the loader does not validate Windows ACLs.
+Never publish tokens in Git, prompts, screenshots, URLs, command arguments or logs.
+
+## Public limits and zero-spend conditions
+
+Public-mode defaults, shared by all callers of one process:
+
+- 120 HTTP requests per 60-second fixed window, not 120 tool calls.
+- Four admitted in-flight requests.
+- 8 KiB request bodies; 256 KiB response bodies.
+- A 15-second cooperative deadline for body receipt and application work.
+- Minimal GET `/healthz` and `/readyz` probes are outside admission limits.
+
+MCP initialization/notifications also consume requests. Limits reset on process
+restart and are not distributed/monthly quotas. They do not stop traffic from
+reaching the hosting provider or impose a hard CPU, socket-delivery or billing cap.
+Oversized responses are replaced, not silently truncated clinical instructions.
+
+The operator's zero-spend setup depends on **Free workspace/resources, no linked
+payment method, no paid add-ons/APIs, and accepting shutdown at exhausted quotas**.
+The operator reports no payment method is linked; this was not an independent
+billing-account audit. Under [Render's current policy](https://render.com/docs/free),
+linked payment methods can permit overage charges even on Free compute.
+A pipeline spending limit or usage alert is not an overall bill cap.
+Do not add a payment method or upgrade resources under this arrangement.
+
+Allowances are shared with other workspace services. Heavy use can suspend other
+Free apps too. There is no uptime SLA or perpetual guarantee about provider terms.
+Claude/other clients may have their own account fees; this MCP does not call or
+bill a model API.
+
+## Troubleshooting and privacy
+
+- **`429`:** shared request quota reached. Respect `Retry-After`; do not retry-loop.
+- **`503`:** busy, oversized response or unavailable backend. Narrow the query/limit
+  and try later; do not strip coding instructions to make an answer look complete.
+- **`504`:** application deadline. Do not repeatedly submit the same request.
+- **`remote_unavailable`:** the screened client sanitizes HTTP/protocol failures.
+  The Free host may be sleeping, rate-limited or quota-suspended. Minimal readiness:
+  <https://icd10-reference-mcp.onrender.com/readyz>.
+- **Startup/no tools:** check absolute executable paths, installed dependencies,
+  valid JSON and organization permissions. A stdio bridge waits for protocol input.
+- **`privacy_blocked`:** do not bypass screening or use redacted patient text.
+  Choose an independently selected public term instead.
+- Dates are required: 2026-04-01 through 2027-09-30 across two releases; no default
+  current date or fallback. Only the local client/bridge substitutes release anchors.
+- Hosted checks are after receipt. Arbitrary clients, cloud conversations,
+  provider/proxy logs and debug logging remain outside local screening's control.
+  Authentication and screening do not establish patient-data or clinical safety.
+
+See [verification](verification.md), [hosting limits](render-demo.md), and first-party
+[Claude remote connector instructions](https://claude.com/docs/connectors/custom/remote-mcp).

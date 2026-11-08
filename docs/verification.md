@@ -14,15 +14,15 @@ Historical non-Git comparison baseline:
   FY2027: 74,879 assignable codes, 23,524 headers, 47,344 hierarchy nodes.
 - Core environment has no installed `openmed` package. Public lookup succeeds for
   April `E11.9` and FY2027-only `C78.31`; the new code is not returned for April.
-- Most recent full opt-in suite (2026-11-08): **226 passed in 194.03 seconds**;
-  the connection handoff, reference upgrade and deployment evidence are recorded below.
+- Most recent full opt-in suite (2026-11-08): **237 passed in 211.38 seconds**;
+  the public-access implementation and earlier deployment evidence are recorded below.
 - Earlier full opt-in suite (2026-11-07): **205 passed in 101.63 seconds**, including both fresh
   corpus imports, partial-XML rejection, actual local model weights and MCP transports.
   This run followed local-only Render preparation and its 19 demo/build checks.
   The previous 186-test run covered the local-trial command and its eight CLI checks.
   The previous 178-test run followed the NLP audit fixes and shared model-policy refactor.
   The earlier 172-test run followed the importer fix and Starlette upgrade to 1.10.0.
-- Latest Ruff lint and formatting passed across all 48 files in `src`, `tests`, and `scripts`.
+- Latest Ruff lint and formatting passed across all 50 files in `src`, `tests`, and `scripts`.
 - The initial core dependency audit failed on Starlette advisories. The patched,
   regenerated `requirements/core.lock` audit now reports no known vulnerabilities.
   The separate OpenMed lock audit earlier in this build also reported no known
@@ -319,6 +319,53 @@ See `docs/render-demo.md` for the deployed configuration and remaining restricti
 - Actual Claude Desktop UI/version acceptance remains a manual gate. Local bridge
   screening cannot undo text already processed by a chat provider. No patient-data,
   clinical, institutional-auth or broader security acceptance is implied.
+
+## Public access implementation, 2026-11-08
+
+- Approved scope: implement/test/push/redeploy only the existing Free MCP, no
+  billing or paid-resource changes. Operator confirms no payment method linked.
+  The zero-spend condition depends on provider billing configuration and accepting
+  quota shutdown, not a promise that rate limits prevent bills.
+- Public mode is opt-in (`ICD10_PUBLIC_ACCESS=1`); protected mode remains default.
+  Same two read-only note-free tools and raw argument privacy guard; local core
+  remains independent of hosted authentication and optional NLP.
+- Local public HTTP cases pass: real official-SDK anonymous lookup/validation,
+  malformed-argument no-echo, shared request quota/reset with live health probes,
+  declared/chunked body limits, oversized response replacement without partial
+  output, in-flight rejection/release, and stalled-body deadline/release.
+  The first SDK test initially used an official description against a declared
+  synthetic fixture; its literal expectation was corrected to the fixture source.
+  This was a test-fixture correction, not a clinical-label adjudication.
+- Anonymous library calls preserve local screening/date anchors and send no
+  Authorization header. Explicit anonymous CLI ignores inherited credentials.
+  The checked-in token-free desktop arguments pass actual stdio exchanges against
+  both anonymous and protected loopback servers; blocked input produces zero HTTP.
+- Fresh verified real-catalog builds launch in both protected and public mode.
+  The public subprocess starts without any token and the actual anonymous CLI
+  returns FY2027 `C78.31`. Both launcher cases passed in 33.87 seconds.
+  Public admission, client, CLI, bridge and launcher additions were each observed
+  failing then passing at the public seams; no owned mocks or SQL test side channels.
+- Initial full corpus/model suite: **236 passed in 186.82 seconds**.
+  Standards review found zero hard violations or actionable smells. Independent
+  Spec review found SDK-generated HTTP protocol errors could still echo malformed
+  envelope/header values. A new public HTTP regression reproduced that leak;
+  public HTTP error bodies are now replaced with generic responses before release.
+  The test also verifies no marker echo in captured application logs.
+  The focused Spec re-review verified the actual malformed envelope/header cases
+  and successful initialization, marked the issue resolved, and found no remaining
+  high-confidence issues. This is not a broader security certification.
+- After the fix, default suite: **212 passed, 25 opt-in skips in 21.38 seconds**.
+  Final full corpus/model rerun: **237 passed in 211.38 seconds**, including fresh
+  imports and actual local model weights. Private log:
+  `.scratch/public-access-20261108/final-full-tests.log`.
+  Ruff lint/format pass across 50 files. No dependency or model changes.
+- Public limits: 120 HTTP requests/60-second fixed window, four active requests,
+  8 KiB input, 256 KiB output, 15-second cooperative input/application deadline.
+  Health probes are exempt; state resets on restart. This is not a distributed
+  quota, hard CPU bound, socket-write deadline, monthly budget or provider bill cap.
+- Deployment is pending Render connector authorization. No new hosted acceptance,
+  no extra load test, and no actual Claude UI/Windows runtime acceptance is claimed.
+  Current hosted app is still the previously verified token-protected deployment.
 
 ## Observed red-to-green slices
 

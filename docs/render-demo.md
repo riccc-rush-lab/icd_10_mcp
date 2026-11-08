@@ -6,7 +6,33 @@ notes, OpenMed, patient data, institutional credentials or remote LLM. The local
 stdio and loopback launcher's defaults are unchanged. Additional deployments,
 paid resources and source publication still require approval.
 
-## Active branded replacement, 2026-11-08
+## Public no-login release: activation pending
+
+The user approved implementation, tests, GitHub publication and redeployment of
+the **existing Free service only**, without paid resources or billing changes.
+Source now supports explicit `ICD10_PUBLIC_ACCESS=1`; absent/`0` retains the
+token-protected default. Other values fail startup. Both full catalogs are still
+required. No signup or identity-provider dependency was added.
+
+Public admission is per process: 120 HTTP requests/60 seconds, four active requests,
+8 KiB input, 256 KiB output and a 15-second cooperative body/application deadline.
+Minimal GET health probes bypass admission. Response limits replace oversized
+results, not truncate coding instructions. These are abuse controls, not distributed
+quotas, strict CPU/socket guarantees or a hosting bill cap.
+
+The operator reports **no payment method linked**. Under
+[Render's documented Free policy](https://render.com/docs/free), Free quota exhaustion
+then suspends services rather than charging overages. Keep the workspace/resources
+Free, with no paid add-ons/APIs or linked payment method. A pipeline spend limit
+does not cap every billable category. Shared allowances mean heavy public use can
+also suspend other Free services. Provider terms can change; no perpetual $0 or
+availability guarantee is claimed, and billing status was not independently audited.
+
+Deployment is waiting for Render connector authorization. Until deployment and live
+verification, the existing endpoint remains protected. No billing, old-service or
+unrelated-service change is authorized. See [connection instructions](connect.md).
+
+## Original branded replacement, 2026-11-08
 
 The MCP identity is now **ICD10 Reference MCP**. Render's supported service-update
 controls did not expose a URL/slug rename. The user separately approved creating
@@ -37,7 +63,8 @@ upgrade or unrelated-service change is authorized.
 
 For arbitrary public terminology, use `icd10_mcp.reference_client` as documented
 in the [Python/terminal and Claude Desktop connection guide](connect.md).
-The guide uses a private token file and needs no local catalogs or models.
+The guide covers token-free public mode and optional private-token compatibility;
+neither needs local catalogs or models.
 It screens before network initialization, blocks suspicious inputs
 without echoing them, and sends a public release anchor instead of the exact date.
 The two hosted tools also screen their code/phrase inputs as defense in depth.

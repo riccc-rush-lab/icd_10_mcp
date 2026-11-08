@@ -1,4 +1,4 @@
-"""Explicitly configured, bearer-protected terminology demo, not institutional auth."""
+"""Explicitly configured terminology hosting, not institutional auth."""
 
 from __future__ import annotations
 
@@ -15,12 +15,13 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse
 
 from .catalog import CatalogSet, configured_catalog
+from .public_http import PublicHTTPGuard, PublicLimits
 from .releases import APRIL_ID, FY2027_ID
 from .server import create_server
 
 
 class _DemoGuard:
-    def __init__(self, app, *, token: str, origin: str):
+    def __init__(self, app, *, token: str | None, origin: str):
         self.app = app
         self.token = token
         self.origin = origin
@@ -38,8 +39,9 @@ class _DemoGuard:
             return
         credentials = headers.getlist("authorization")
         scheme, _, value = credentials[0].partition(" ") if len(credentials) == 1 else ("", "", "")
-        if scheme.lower() != "bearer" or not secrets.compare_digest(
-            value.encode(), self.token.encode()
+        if self.token is not None and (
+            scheme.lower() != "bearer"
+            or not secrets.compare_digest(value.encode(), self.token.encode())
         ):
             await JSONResponse(
                 {"status": "unauthorized"},
@@ -64,9 +66,21 @@ class _DemoGuard:
         await self.app(scope, receive, send)
 
 
-def create_demo_app(catalog_path, *, token: str, hostname: str, catalog_config=None):
+def create_demo_app(
+    catalog_path,
+    *,
+    token: str | None = None,
+    hostname: str,
+    catalog_config=None,
+    public_access: bool = False,
+    public_limits: PublicLimits | None = None,
+):
     """Create a terminology-only app; the caller controls binding and TLS termination."""
-    if not re.fullmatch(r"[A-Za-z0-9._~+/-]{32,256}={0,2}", token):
+    if type(public_access) is not bool:
+        raise ValueError("Configure an explicit public-access boolean.")
+    if not public_access and (
+        not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9._~+/-]{32,256}={0,2}", token)
+    ):
         raise ValueError("Configure a random demo token of at least 32 characters.")
     if len(hostname) > 253 or not re.fullmatch(
         r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*"
@@ -100,8 +114,12 @@ def create_demo_app(catalog_path, *, token: str, hostname: str, catalog_config=N
         )
 
     app = mcp.streamable_http_app()
-    app.add_middleware(_DemoGuard, token=token, origin=f"https://{hostname}")
+    app.add_middleware(
+        _DemoGuard, token=None if public_access else token, origin=f"https://{hostname}"
+    )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=[hostname])
+    if public_access:
+        app.add_middleware(PublicHTTPGuard, limits=public_limits or PublicLimits())
     return app
 
 
@@ -116,11 +134,15 @@ def main():
     )
     args = parser.parse_args()
     try:
+        public_access = os.environ.get("ICD10_PUBLIC_ACCESS", "0")
+        if public_access not in {"0", "1"}:
+            raise ValueError
         config = os.environ["ICD10_CATALOGS"]
         app = create_demo_app(
             "",
             catalog_config=config,
-            token=os.environ["ICD10_DEMO_TOKEN"],
+            token=os.environ.get("ICD10_DEMO_TOKEN"),
+            public_access=public_access == "1",
             hostname=os.environ.get("ICD10_DEMO_HOSTNAME")
             or os.environ["RENDER_EXTERNAL_HOSTNAME"],
         )

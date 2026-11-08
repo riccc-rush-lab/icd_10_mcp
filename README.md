@@ -18,9 +18,10 @@ See [optional OpenMed setup](docs/local-openmed.md),
 [local execution / later hosting](docs/hosting.md).
 Technical check results and remaining gates: [verification](docs/verification.md).
 Step-by-step setup and acceptance: [local trial guide](docs/local-trial.md).
-Authenticated terminology-only hosting trial: [Render demo](docs/render-demo.md).
+Terminology-only hosting trial: [Render demo](docs/render-demo.md).
 **Connecting as a user?** Follow [Python/terminal and Claude Desktop setup](docs/connect.md).
-The hosted path needs no local catalogs or models; access requires operator approval.
+The hosted path needs no local catalogs or models. Public no-login mode is prepared;
+activation is pending deployment and live verification, as noted in the connection guide.
 For remote lookup, use the [screened local client](#screened-remote-reference-client),
 not a patient note in a cloud chat.
 
@@ -174,16 +175,16 @@ Hosted screening happens after receipt. Arbitrary MCP clients, cloud chats,
 platform/proxy logs and a caller's debug logging are outside this client's control.
 The application cannot promise that PII is never transmitted.
 
-Use a private token file as described in the [connection guide](docs/connect.md).
-Alternatively set `ICD10_DEMO_TOKEN` securely in the local environment, not in command arguments.
-Verified Free endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
-It requires the replacement service's shared secret, not the old demo's token.
-See the Render guide for access and cold-start limits.
+Public mode needs no token. Use `--anonymous` to avoid forwarding an inherited
+credential. Protected deployments retain private token-file/environment support.
+See the [connection guide](docs/connect.md) for activation status, direct URL setup,
+local screening, and shared Free quotas. Endpoint:
+`https://icd10-reference-mcp.onrender.com/mcp`.
 
 ```sh
 .venv/bin/python -m icd10_mcp.reference_client \
   --url https://icd10-reference-mcp.onrender.com/mcp \
-  --token-file /absolute/path/to/private/token --public-terminology <<'JSON'
+  --anonymous --public-terminology <<'JSON'
 {"operation":"lookup","query":"pneumonia","service_date":"2026-10-01","limit":5}
 JSON
 ```
