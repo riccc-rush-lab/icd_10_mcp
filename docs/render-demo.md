@@ -6,14 +6,34 @@ notes, OpenMed, patient data, institutional credentials or remote LLM. The local
 stdio and loopback launcher's defaults are unchanged. Additional deployments,
 paid resources and source publication still require approval.
 
-## Approved branded replacement
+## Active branded replacement, 2026-11-08
 
 The MCP identity is now **ICD10 Reference MCP**. Render's supported service-update
 controls did not expose a URL/slug rename. The user separately approved creating
 a replacement **Free** service named `icd10-reference-mcp`, verifying its actual
 endpoint, and only then suspending the old demo for rollback. No deletion, paid
-upgrade or unrelated-service change is authorized. The replacement endpoint and
-load measurements must be verified before being recorded as live below.
+upgrade or unrelated-service change is authorized.
+
+- **MCP endpoint:** `https://icd10-reference-mcp.onrender.com/mcp`.
+- Free, Oregon; service `srv-dbocb63l550s739ah2vg`, deployment
+  `dep-dbocb63l550s739ah3cg`, application commit `e1090e6`.
+  The clean native build became live at 18:56:47Z. Automatic deploys are off.
+- Both five-check official MCP client runs passed across the September/October
+  release boundary. Live checks also passed branding, two note-free tools,
+  anonymous/wrong-token rejection, exact-date minimization, new-code release
+  selection, malformed-code validation and the stdin phrase client.
+- The old `icd10-terminology-demo` service is **suspended, not deleted**, for rollback.
+  The unrelated existing service's configuration matches the pre-cutover record.
+  No paid resource or billing change was made.
+- The replacement uses a **new, separate secret**. On the original development
+  computer, `.scratch/reference-upgrade-20261108/replacement-path.txt` points to
+  its private deployment directory. The `icd10-demo-token` file inside is mode
+  `0600` in a mode-`0700` directory. These files are ignored, not published.
+  Load the token privately into `ICD10_DEMO_TOKEN`; never paste it into chat,
+  URLs, command arguments or logs.
+- The token was absent from 197 captured provider log entries. Eleven provider
+  memory samples had a maximum of 62,615,550 bytes (about 59.7 MiB).
+  Samples are not peak RSS, complete file-cache accounting or a capacity guarantee.
 
 For arbitrary public terminology, use `icd10_mcp.reference_client` as documented
 in the README. It screens before network initialization, blocks suspicious inputs
@@ -41,11 +61,32 @@ Run only against an explicitly authorized target, with the token securely set:
 ```
 
 The JSON report measures successful calls/second and p50/p95/p99 client latency,
-including connection and MCP initialization. A passed level is an observation,
+including local screening and per-call MCP initialization. The benchmark shares
+an HTTP connection pool; it is not a fresh TLS handshake for every lookup.
+A passed level is an observation,
 not maximum server capacity, concurrent-user capacity, a sustained-load result
 or an SLA. This short benchmark does not measure the 15-minute idle cold start.
 
-## Deployed trial, 2026-11-08
+### Measured result
+
+One approved run used 75.94 seconds and 1,000 HTTP requests, with 1,465,957
+response-body bytes. It completed 247 calls. It then stopped at its own HTTP cap;
+four client operations were budget-interrupted, not demonstrated service failures.
+
+| Concurrent client operations | Completed calls | Calls/second | Successful-call p95 |
+| --- | --- | --- | --- |
+| 1 | 75 | 1.972 | 635 ms |
+| 2 | 75 | 3.648 | 729 ms |
+| 4 | 75 | 5.829 | 959 ms |
+| 8 | 22, incomplete | Not a completed-level result | Not established |
+
+**Four concurrent operations are the highest fully completed level, not the
+service's maximum.** The partial eight-operation level is inconclusive because
+the HTTP budget ended. Post-test readiness remained healthy. No extra load run
+was performed. Use conservative concurrency and measure a representative workload
+before making availability, maximum-capacity or production claims.
+
+## Original trial, 2026-11-08 (now suspended)
 
 - MCP endpoint: `https://icd10-terminology-demo.onrender.com/mcp`.
   Anonymous `/healthz` and `/readyz` return minimal operational status.

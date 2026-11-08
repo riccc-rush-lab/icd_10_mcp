@@ -172,11 +172,13 @@ platform/proxy logs and a caller's debug logging are outside this client's contr
 The application cannot promise that PII is never transmitted.
 
 Set `ICD10_DEMO_TOKEN` securely in the local environment, not in command arguments.
-Use the verified endpoint from the Render guide in place of the reserved example:
+Verified Free endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
+It requires the replacement service's shared secret, not the old demo's token.
+See the Render guide for access and cold-start limits.
 
 ```sh
 .venv/bin/python -m icd10_mcp.reference_client \
-  --url https://your-approved-host.example/mcp --public-terminology <<'JSON'
+  --url https://icd10-reference-mcp.onrender.com/mcp --public-terminology <<'JSON'
 {"operation":"lookup","query":"pneumonia","service_date":"2026-10-01","limit":5}
 JSON
 ```

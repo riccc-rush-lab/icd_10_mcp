@@ -14,13 +14,15 @@ Historical non-Git comparison baseline:
   FY2027: 74,879 assignable codes, 23,524 headers, 47,344 hierarchy nodes.
 - Core environment has no installed `openmed` package. Public lookup succeeds for
   April `E11.9` and FY2027-only `C78.31`; the new code is not returned for April.
-- Most recent full opt-in suite (2026-11-07): **205 passed in 101.63 seconds**, including both fresh
+- Most recent full opt-in suite (2026-11-08): **221 passed in 155.73 seconds**;
+  the reference upgrade and deployment evidence are recorded below.
+- Earlier full opt-in suite (2026-11-07): **205 passed in 101.63 seconds**, including both fresh
   corpus imports, partial-XML rejection, actual local model weights and MCP transports.
   This run followed local-only Render preparation and its 19 demo/build checks.
   The previous 186-test run covered the local-trial command and its eight CLI checks.
   The previous 178-test run followed the NLP audit fixes and shared model-policy refactor.
   The earlier 172-test run followed the importer fix and Starlette upgrade to 1.10.0.
-- Ruff lint and formatting passed across all 38 files in `src`, `tests`, and `scripts`.
+- Latest Ruff lint and formatting passed across all 44 files in `src`, `tests`, and `scripts`.
 - The initial core dependency audit failed on Starlette advisories. The patched,
   regenerated `requirements/core.lock` audit now reports no known vulnerabilities.
   The separate OpenMed lock audit earlier in this build also reported no known
@@ -215,14 +217,13 @@ See `docs/render-demo.md` for the deployed configuration and remaining restricti
   argument errors are sanitized. JSON note/extra fields are rejected locally.
 - The fixed-public-workload benchmark rejects excessive budgets before network,
   exercises the real SDK/application, reports client latency and stops before
-  raising concurrency when readiness fails. No live load measurement has run yet.
+  raising concurrency when readiness fails. The bounded live result is recorded below.
 - Observed failing/passing public-interface slices covered MCP branding, local
   identifier rejection, date minimization, code preflight, unsafe configuration,
   hosted screening, the stdin command, invalid limits and the bounded benchmark.
   Eponym coverage passed immediately and is a guard, not an invented red.
-- Full regression results, independent reviews and replacement deployment evidence
-  will be recorded after completion. No clinical or patient-data acceptance follows
-  from a successful technical test or deployment.
+- No clinical or patient-data acceptance follows from a successful technical test
+  or deployment.
 - The initial upgrade passed **219 full opt-in tests in 149.16 seconds**.
   Independent review then found two gaps: framework errors could echo malformed
   tool arguments, and stalled readiness requests could exceed the load deadline.
@@ -235,6 +236,44 @@ See `docs/render-demo.md` for the deployed configuration and remaining restricti
   seconds**. Ruff lint/format passed across 44 files. The final full opt-in rerun
   passed **221 tests in 155.73 seconds**, including both fresh CDC imports, actual
   local model weights and MCP transports. Reviews are not a security certification.
+
+## Branded replacement, bounded load and cutover, 2026-11-08
+
+- Reviewed application commit `e1090e6` was pushed and deployed as the replacement
+  `icd10-reference-mcp`, service `srv-dbocb63l550s739ah2vg`, deployment
+  `dep-dbocb63l550s739ah3cg`. The initial native build became live at 18:56:47Z.
+  It uses the Free plan, Oregon, one instance, automatic deploys off and `/readyz`.
+- Active endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
+  A separate generated secret was uploaded as a secret file, not a secret-valued
+  CLI argument. No database, archive, weights, secret or local report was published.
+- Both five-check official-client runs passed for 2026-09-30 and 2026-10-01.
+  Further live checks passed minimal probes, missing/wrong credentials, professional
+  MCP identity, two note-free tool schemas, the screened client's date anchor,
+  `C78.31` release selection, malformed-code validity and the stdin phrase command.
+- One fixed-public-workload load run used **75.94 seconds, 1,000 HTTP requests and
+  1,465,957 response-body bytes**. It completed 247 calls. Full levels 1/2/4 each
+  completed 75 calls without errors, at 1.972/3.648/5.829 calls per second and
+  p95 635/729/959 ms. These include screening and per-call MCP initialization,
+  with a shared HTTP connection pool, not raw server throughput.
+- The eight-operation level completed 22 calls before the HTTP cap interrupted
+  four client operations. The result is `stopped` / `http_request_limit`, not a
+  passed 300-call run or evidence of a service failure. Eight-operation capacity
+  is inconclusive; four is the highest fully completed level, not a maximum/SLA.
+  No extra load run was made. Post-load readiness returned 200 and `ready`.
+- Eleven provider memory samples had maximum 62,615,550 bytes (about 59.7 MiB).
+  An initial query using fractional/offset timestamps was rejected; UTC `Z`
+  timestamps succeeded. This was a measurement-query correction, not an app change.
+  Samples do not establish peak RSS, exhaustive cache use or sustained capacity.
+- The replacement token was absent from 197 captured provider log entries.
+  After successful functional verification and healthy post-load checks, the
+  approved suspension returned 202; the old service then reported `suspended`.
+  Nothing was deleted. Its original configuration/secret remain for rollback.
+  The unrelated service's configuration matched the pre-cutover record.
+- Detailed reports and token remain in the ignored private deployment directory
+  referenced by `.scratch/reference-upgrade-20261108/replacement-path.txt`.
+  Paid plans and billing settings were not changed. Shared free allowances,
+  idle resume, sustained load, rotation, institutional auth and an independent
+  security/clinical review remain outside this technical acceptance.
 
 ## Observed red-to-green slices
 
@@ -319,7 +358,7 @@ FY2027 `J18.9`, completed scan, full synthetic email/name preview masking and
 
 ## Unverified / external gates
 
-- Docker daemon unavailable: no image build, non-root runtime, Linux install,
+- Docker daemon unavailable: no image build, non-root runtime, Docker-specific Linux install,
   image scan, container MCP or memory/load result is claimed.
 - Container base tag is not digest-pinned; institutional distribution is gated.
 - Model/dataset inherited terms are not independently cleared. No datasets downloaded.
