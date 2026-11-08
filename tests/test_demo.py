@@ -11,6 +11,120 @@ from mcp.client.streamable_http import streamable_http_client
 TOKEN = "synthetic-demo-token-not-a-real-secret-123456"
 
 
+def test_demo_mcp_initialization_has_professional_reference_identity(catalog_path):
+    from icd10_mcp.demo import create_demo_app
+
+    async def run():
+        app = create_demo_app(catalog_path, token=TOKEN, hostname="trial.onrender.com")
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app),
+                base_url="https://trial.onrender.com",
+                headers={"Authorization": f"Bearer {TOKEN}"},
+            ) as client:
+                async with streamable_http_client(
+                    "https://trial.onrender.com/mcp", http_client=client
+                ) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        result = await session.initialize()
+                        assert result.serverInfo.name == "ICD10 Reference MCP"
+
+    asyncio.run(run())
+
+
+def test_hosted_tools_reject_identifier_text_without_returning_it(catalog_path, caplog):
+    from icd10_mcp.demo import create_demo_app
+
+    async def run():
+        app = create_demo_app(catalog_path, token=TOKEN, hostname="trial.onrender.com")
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app),
+                base_url="https://trial.onrender.com",
+                headers={"Authorization": f"Bearer {TOKEN}"},
+            ) as client:
+                async with streamable_http_client(
+                    "https://trial.onrender.com/mcp", http_client=client
+                ) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        for tool, arguments in (
+                            ("phrase_search", {"query": "avery@example.invalid pneumonia"}),
+                            ("validate_selected_codes", {"codes": ["Avery Example"]}),
+                        ):
+                            result = await session.call_tool(
+                                tool, {**arguments, "service_date": "2026-04-01"}
+                            )
+                            assert not result.isError
+                            assert result.structuredContent["status"] == "privacy_blocked"
+                            assert "Avery Example" not in str(result)
+                            assert "avery@example.invalid" not in str(result)
+
+    asyncio.run(run())
+    assert "Avery Example" not in caplog.text
+    assert "avery@example.invalid" not in caplog.text
+
+
+def test_hosted_malformed_tool_arguments_never_echo_identifiers(catalog_path, caplog):
+    from icd10_mcp.demo import create_demo_app
+
+    async def run():
+        app = create_demo_app(catalog_path, token=TOKEN, hostname="trial.onrender.com")
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app),
+                base_url="https://trial.onrender.com",
+                headers={"Authorization": f"Bearer {TOKEN}"},
+            ) as client:
+                async with streamable_http_client(
+                    "https://trial.onrender.com/mcp", http_client=client
+                ) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        for tool, arguments in (
+                            ("phrase_search", {"query": ["avery@example.invalid"]}),
+                            (
+                                "phrase_search",
+                                {"query": "pneumonia", "limit": "avery@example.invalid"},
+                            ),
+                            (
+                                "phrase_search",
+                                {"query": "avery@example.invalid", "limit": "PRIVATE"},
+                            ),
+                            (
+                                "phrase_search",
+                                {"query": "pneumonia", "note": "avery@example.invalid"},
+                            ),
+                            (
+                                "validate_selected_codes",
+                                {"codes": [{"name": "avery@example.invalid"}]},
+                            ),
+                            (
+                                "validate_selected_codes",
+                                {
+                                    "codes": ["E11.9"],
+                                    "service_date": {"name": "avery@example.invalid"},
+                                },
+                            ),
+                        ):
+                            result = await session.call_tool(
+                                tool, {"service_date": "2026-04-01", **arguments}
+                            )
+                            assert "avery@example.invalid" not in str(result)
+                            assert "PRIVATE" not in str(result)
+                            if result.isError:
+                                assert (
+                                    result.content[0].text
+                                    == "Invalid public terminology arguments."
+                                )
+                            else:
+                                assert result.structuredContent["status"] == "privacy_blocked"
+
+    asyncio.run(run())
+    assert "avery@example.invalid" not in caplog.text
+    assert "PRIVATE" not in caplog.text
+
+
 def test_demo_rejects_missing_or_query_string_credentials_but_allows_health(catalog_path):
     from icd10_mcp.demo import create_demo_app
 

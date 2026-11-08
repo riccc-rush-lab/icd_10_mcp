@@ -8,13 +8,48 @@ from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse
 
 from .catalog import DISCLAIMER, CatalogSet, configured_catalog
+from .privacy import blocked_codes, blocked_phrase, blocked_response
 from .service import ICDService
+
+
+class _PublicTerminologyMCP(FastMCP):
+    """Screen raw tool arguments before framework coercion/error formatting."""
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]):
+        allowed = {
+            "phrase_search": {"query", "service_date", "limit"},
+            "validate_selected_codes": {"codes", "service_date"},
+        }
+        invalid = ToolError("Invalid public terminology arguments.")
+        if (
+            name not in allowed
+            or not isinstance(arguments, dict)
+            or not arguments.keys() <= allowed[name]
+            or not isinstance(arguments.get("service_date"), str)
+        ):
+            raise invalid
+        if name == "phrase_search":
+            if not isinstance(arguments.get("query"), str):
+                raise invalid
+            if blocked_phrase(arguments.get("query")):
+                return blocked_response()
+            limit = arguments.get("limit", 10)
+            if type(limit) is not int or not 1 <= limit <= 25:
+                raise invalid
+        else:
+            codes = arguments.get("codes")
+            if not isinstance(codes, list) or any(not isinstance(code, str) for code in codes):
+                raise invalid
+            if blocked_codes(codes):
+                return blocked_response()
+        return await super().call_tool(name, arguments)
 
 
 def create_server(
@@ -25,8 +60,9 @@ def create_server(
     transport_security: TransportSecuritySettings | None = None,
 ) -> FastMCP:
     service = ICDService(configured_catalog(catalog_path, catalog_config))
-    mcp = FastMCP(
-        "Local ICD-10-CM Lookup",
+    server_type = FastMCP if include_note_tools else _PublicTerminologyMCP
+    mcp = server_type(
+        "ICD10 Reference MCP",
         instructions=DISCLAIMER,
         host="127.0.0.1",
         stateless_http=True,
@@ -49,6 +85,7 @@ def create_server(
         Requires YYYY-MM-DD service_date within an explicitly configured release.
         Returns descriptions, assignable vs header status, hierarchy, index references,
         instructions, source evidence, and release identity. Results require coder review.
+        Remote use is public-terminology only. Screen locally; never send patient data.
         """
         return service.search(query, service_date, limit)
 

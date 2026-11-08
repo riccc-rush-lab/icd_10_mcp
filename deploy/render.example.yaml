@@ -2,7 +2,7 @@
 # Creating a Blueprint service can trigger its INITIAL deploy even with auto-deploys off.
 services:
   - type: web
-    name: icd10-terminology-demo
+    name: icd10-reference-mcp
     runtime: python
     plan: free
     autoDeployTrigger: 'off'

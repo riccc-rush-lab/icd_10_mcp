@@ -1,6 +1,6 @@
-# Local build verification
+# Technical verification
 
-This records technical checks, not clinical/privacy acceptance or deployment.
+This records technical checks and deployment evidence, not clinical/privacy acceptance.
 Approved scope and six public TDD seams:
 `.scratch/health-system-build/spec.md`.
 Historical non-Git comparison baseline:
@@ -146,6 +146,96 @@ demo. Shared-secret access is not institutional auth, clinical or PHI readiness.
   The earlier 205-test opted-in run and working-catalog trial remain recorded above;
   default-test success does not replace those integration checks.
 
+## Source publication and Render trial, 2026-11-08
+
+- Source commit `432fd2c` was pushed to public
+  `riccc-rush-lab/icd_10_mcp/main` after Write access was granted. Catalogs, source
+  archives, weights, environments, credentials and local reports remained excluded.
+- After a separate hosting comparison, the user selected Render Free, approved
+  CLI installation and completed browser authorization. CLI 2.36.0 selected the
+  sole workspace; the inactive example passed Render's Blueprint validation.
+- Created only `icd10-terminology-demo`, service `srv-dbobjpbm8hqs7383rea0`, on the
+  Free plan in Oregon, with automatic deploys disabled and `/readyz` health checks.
+  Initial deployment `dep-dbobjprm8hqs7383rf1g` built successfully on Linux and
+  became live using the reviewed commit. Its clean build installed the hashed
+  core lock, downloaded the pinned public CDC archives and built both catalogs.
+- A generated token was stored in an ignored private local directory and uploaded
+  as a Render secret file. The start-command bootstrap reads it into the demo's
+  environment, avoiding a secret-valued CLI argument. Local loopback checks of
+  this bootstrap passed for both releases; that local process was stopped.
+- Live endpoint: `https://icd10-terminology-demo.onrender.com/mcp`. Both official
+  client runs passed five checks each for `2026-09-30` and `2026-10-01`, including
+  exact code, phrase, nonassignable header and selected-code validation.
+- The final report passed 21 named verification gates (including grouped client
+  checks), not 21 independently adjudicated clinical cases. Further controls
+  confirmed exactly two note-free tools, correct `C78.31` release-boundary behavior,
+  malformed-code rejection, `invalid_request` for malformed dates, and
+  `release_unavailable` with no fallback for an unavailable date.
+- Missing/wrong/query-only credentials returned 401; duplicate Authorization was
+  rejected with 400 at the hosted boundary. Foreign Origin returned 403, non-JSON
+  POST media returned 400 and a 65,537-byte body returned 413. Minimal anonymous
+  health/readiness probes passed. Four simultaneous E11.9 lookups preserved their
+  requested release identities and completed in 0.318 seconds in one warm check.
+- Initial ad hoc verifier runs failed due to incorrect expectations: 415 instead
+  of the established non-JSON 400 response, and empty candidate lists instead of
+  date-error envelopes without candidate/release fields. The verifier was
+  corrected against those existing contracts; no application code changed.
+- Render's memory API returned eight samples between 18:06:50Z and 18:10:20Z,
+  with a maximum observed 60,805,120 bytes (58 MiB). Sampling is not peak RSS,
+  exhaustive file-cache accounting, sustained capacity or a production SLA.
+  The shared token was absent from the 199 captured provider log entries.
+- Detailed reports and the mode-0600 token remain under the ignored private
+  `.scratch/render-deploy-20261108-yng6ia4g/` directory. No existing service or
+  billing setting was modified. Another free service already existed; account
+  usage allowances remain shared and are not a guarantee of a zero bill.
+- This was an operational trial of unchanged application code. The full test
+  suite and Ruff were not rerun. Idle suspension/resume, sustained concurrency,
+  long-term memory/billing, token rotation and an independent demo security review
+  remain unverified. OpenMed stayed local; clinical/patient-data readiness is false.
+  Deployment documentation was updated locally, not committed or pushed again.
+
+See `docs/render-demo.md` for the deployed configuration and remaining restrictions.
+
+## Reference branding and privacy upgrade, 2026-11-08
+
+- Public MCP identity: `ICD10 Reference MCP`. Existing tools, local lookup and the
+  optional synthetic-only OpenMed workflow are retained.
+- The new local reference client blocks the tested email/phone/SSN/DOB/MRN,
+  name-shaped, address, URL, control-character and note-context examples before
+  any HTTP request. All fixtures are synthetic. Ordinary/eponym phrases still
+  reach the real application. Selected-code fields and numeric limits are checked
+  before connection; errors do not echo the tested private markers.
+- Exact service dates are mapped locally to public release anchors; the tested
+  original date does not appear in recorded outbound traffic. Unsupported dates
+  do not select a fallback. Static client identity avoids sending the hostname.
+- Hosted note-free tools block suspected identifiers as defense in depth, **after
+  receipt**. Best-effort rules have false positives/negatives; no general PII recall,
+  arbitrary-client privacy, patient-data readiness or clinical validation is claimed.
+- A stdin-only client command avoids query/token command arguments. Its malformed
+  argument errors are sanitized. JSON note/extra fields are rejected locally.
+- The fixed-public-workload benchmark rejects excessive budgets before network,
+  exercises the real SDK/application, reports client latency and stops before
+  raising concurrency when readiness fails. No live load measurement has run yet.
+- Observed failing/passing public-interface slices covered MCP branding, local
+  identifier rejection, date minimization, code preflight, unsafe configuration,
+  hosted screening, the stdin command, invalid limits and the bounded benchmark.
+  Eponym coverage passed immediately and is a guard, not an invented red.
+- Full regression results, independent reviews and replacement deployment evidence
+  will be recorded after completion. No clinical or patient-data acceptance follows
+  from a successful technical test or deployment.
+- The initial upgrade passed **219 full opt-in tests in 149.16 seconds**.
+  Independent review then found two gaps: framework errors could echo malformed
+  tool arguments, and stalled readiness requests could exceed the load deadline.
+  Both were reproduced with failing public tests and fixed. Raw hosted arguments
+  are now screened before framework validation; schema errors remain generic MCP
+  tool errors. Readiness waits now use the remaining absolute deadline.
+- Standards review found no hard violations and one duplicated-parser heuristic;
+  the shared sanitized CLI parser removes that duplication.
+- After those fixes: **197 default tests passed, 24 explicitly skipped in 10.01
+  seconds**. Ruff lint/format passed across 44 files. The final full opt-in rerun
+  passed **221 tests in 155.73 seconds**, including both fresh CDC imports, actual
+  local model weights and MCP transports. Reviews are not a security certification.
+
 ## Observed red-to-green slices
 
 Release-aware import/workflows/CLI, evaluator/CLI, scoring status, missing-model
@@ -235,5 +325,6 @@ FY2027 `J18.9`, completed scan, full synthetic email/name preview masking and
 - Model/dataset inherited terms are not independently cleared. No datasets downloaded.
 - No clinician/coder gold-label approval, held-out clinical/PII validation or scoring
   method selection. Scoring remains disabled.
-- No cloud accounts, deployment, public port/tunnel, Entra/OAuth tenant/client
-  integration, private Azure routes/DNS, production acceptance or patient-data use.
+- No Entra/OAuth tenant/client integration, private Azure routes/DNS, production
+  acceptance or patient-data use. The separately authorized public Render trial is
+  recorded above; it does not resolve these institutional gates.

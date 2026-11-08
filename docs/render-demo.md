@@ -1,9 +1,85 @@
-# Render Free demo preparation
+# ICD10 Reference MCP on Render Free
 
-**Prepared locally, not deployed. Do not create a service or publish source without
-separate approval.** This targets the Python MCP test client and public terminology
-only. No clinical notes, OpenMed, patient data, institutional credentials or remote LLM.
-The local stdio and loopback launcher's defaults are unchanged.
+**A terminology-only demo was deployed with separate user approval on 2026-11-08.**
+This targets the Python MCP test client, not a browser search page. No clinical
+notes, OpenMed, patient data, institutional credentials or remote LLM. The local
+stdio and loopback launcher's defaults are unchanged. Additional deployments,
+paid resources and source publication still require approval.
+
+## Approved branded replacement
+
+The MCP identity is now **ICD10 Reference MCP**. Render's supported service-update
+controls did not expose a URL/slug rename. The user separately approved creating
+a replacement **Free** service named `icd10-reference-mcp`, verifying its actual
+endpoint, and only then suspending the old demo for rollback. No deletion, paid
+upgrade or unrelated-service change is authorized. The replacement endpoint and
+load measurements must be verified before being recorded as live below.
+
+For arbitrary public terminology, use `icd10_mcp.reference_client` as documented
+in the README. It screens before network initialization, blocks suspicious inputs
+without echoing them, and sends a public release anchor instead of the exact date.
+The two hosted tools also screen their code/phrase inputs as defense in depth.
+These checks are best effort, not PII certification; server checks happen after
+receipt. Do not enter patient data, even through this client or a cloud MCP chat.
+Core lookup stays independent of local OpenMed/models.
+
+## Bounded load measurement
+
+`icd10_mcp.load_check` runs fixed public exact-code, phrase, header and selected-code
+workloads through the screened client across the two public release anchors.
+It uses levels 1, 2, 4 and 8, at most 300 tool calls and 120 seconds, plus a
+1,000-HTTP-request cap and a 20 MiB response-body stop threshold. Health probes
+and MCP initialization count toward the HTTP budget. It checks readiness before
+each level and stops on HTTP/tool errors, unhealthy state or a budget limit.
+
+Run only against an explicitly authorized target, with the token securely set:
+
+```sh
+.venv/bin/python -m icd10_mcp.load_check \
+  --url https://your-approved-host.example/mcp --authorized-target \
+  --max-calls 300 --max-concurrency 8 --seconds 120
+```
+
+The JSON report measures successful calls/second and p50/p95/p99 client latency,
+including connection and MCP initialization. A passed level is an observation,
+not maximum server capacity, concurrent-user capacity, a sustained-load result
+or an SLA. This short benchmark does not measure the 15-minute idle cold start.
+
+## Deployed trial, 2026-11-08
+
+- MCP endpoint: `https://icd10-terminology-demo.onrender.com/mcp`.
+  Anonymous `/healthz` and `/readyz` return minimal operational status.
+- Render Free, Oregon; service `srv-dbobjpbm8hqs7383rea0`, deployment
+  `dep-dbobjprm8hqs7383rf1g`, source commit `432fd2c`. Automatic deploys are off.
+  The fresh native Linux build installed the hashed core dependencies, downloaded
+  the pinned CDC archives and built both release catalogs successfully.
+- CLI 2.36.0 used browser authorization. Its `--env-var` flag takes values in process
+  arguments, so the shared demo token was instead generated locally in a private
+  Git-ignored deployment directory and uploaded as the secret file
+  `/etc/secrets/icd10-demo-token`. A short Python start-command bootstrap reads
+  that file into `ICD10_DEMO_TOKEN` before invoking the unchanged demo launcher.
+  The local token file is mode `0600`, inside a mode `0700` directory. Do not paste
+  its contents into chat, command arguments, URLs, source or logs.
+- The generated client token is retained locally at
+  `.scratch/render-deploy-<run>/icd10-demo-token`. Set the client's environment
+  privately from that file before using the existing `demo_client` command below.
+  Token rotation must update the provider's secret file and the client copy, then
+  restart the service. This is shared demo access, not per-user authentication.
+- Both five-check official Python MCP client runs passed, for `2026-09-30` and
+  `2026-10-01`. Further live checks covered note-free tool discovery, the new
+  `C78.31` release boundary, malformed inputs, unavailable dates without fallback,
+  authentication, Origin/media/body limits and four simultaneous lookups.
+- Render reported eight memory samples between 18:06:50Z and 18:10:20Z; the largest
+  was 60,805,120 bytes (58 MiB). This is a sampled provider metric, not process peak
+  RSS or a capacity guarantee. Four simultaneous warm lookups completed in 0.318
+  seconds in one small check, not a throughput or latency SLA.
+- The secret was absent from the 199 captured provider log entries. Existing
+  services and billing settings were not changed. This workspace already had a
+  free service, so free usage allowances are shared, not reserved for this demo.
+
+Idle suspension/resume, sustained load, longer-term memory and billing behavior,
+token rotation and an independent security review of the demo remain untested.
+These checks do not establish clinical or patient-data readiness.
 
 ## What is prepared
 
@@ -18,8 +94,10 @@ The local stdio and loopback launcher's defaults are unchanged.
 
 The example disables commit-triggered deploys, but **does not prevent the initial
 deploy when a service is created**. Merely preparing the file created no service.
-Its configuration follows the [Blueprint reference][blueprint]; the actual Render
-schema, Linux runtime and deployment have not been exercised.
+Its configuration follows the [Blueprint reference][blueprint] and passed Render's
+Blueprint validation on 2026-11-08. The live CLI deployment above uses a secret-file
+bootstrap instead of the example's provider-generated environment variable. The
+example remains inactive and is not linked to the deployed service.
 
 ## Authentication and transport
 
@@ -111,11 +189,14 @@ events; rebuild artifacts rather than updating SQLite at runtime. [Free limits][
 
 Tests use actual archive bytes and the real importer/SDK. Download-mode tests supply
 those bytes through an external HTTP adapter and test failure/size limits; they do
-**not** establish successful live CDC acquisition from Render.
+**not by themselves** establish successful live CDC acquisition. The separately
+verified deployed trial above supplies that operational evidence.
 
-## Gates before any deployment
+## Deployment and future-change gates
 
-1. Obtain separate approval to publish the reviewed source and create the free service.
+1. Obtain separate approval to publish source and create resources. The initial
+   source push and free-service deployment received separate approval; that does
+   not authorize a paid upgrade or additional deployment.
 2. Confirm repository access, workspace free-plan eligibility, billing/usage limits
    and whether the exact Python/native build settings are supported.
 3. Perform the fresh Linux build and real pinned CDC downloads. Confirm provenance,
@@ -131,7 +212,8 @@ Render Free lists 512 MB RAM, idle suspension after 15 minutes, approximately
 minute-long resume, 750 shared monthly instance hours, ephemeral files and additional
 usage limits. It is not intended for production or guaranteed always-on/zero-cost
 operation. Keep OpenMed local: the measured configuration exceeds that memory tier.
-No account, billing settings or deployed service were accessed. [Limits][free]
+The initial preparation accessed no account or deployed service. The later
+approved CLI deployment is recorded above; billing settings were not changed. [Limits][free]
 [Pricing][pricing]
 
 [blueprint]: https://render.com/docs/blueprint-spec

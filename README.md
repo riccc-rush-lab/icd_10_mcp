@@ -1,4 +1,7 @@
-# Local ICD-10-CM lookup
+# ICD10 Reference MCP
+
+Local-first ICD-10-CM reference lookup for healthcare teams and researchers.
+This is a descriptive working name, not trademark clearance or clinical approval.
 
 **Primary use: look up an ICD-10-CM code or diagnosis phrase.** Returns the official
 description, assignable-code vs header status, hierarchy, Alphabetic Index references,
@@ -15,11 +18,14 @@ See [optional OpenMed setup](docs/local-openmed.md),
 [local execution / later hosting](docs/hosting.md).
 Technical check results and remaining gates: [verification](docs/verification.md).
 Step-by-step setup and acceptance: [local trial guide](docs/local-trial.md).
-Inactive, separately authenticated hosting preparation: [Render demo](docs/render-demo.md).
+Authenticated terminology-only hosting trial: [Render demo](docs/render-demo.md).
+For remote lookup, use the [screened local client](#screened-remote-reference-client),
+not a patient note in a cloud chat.
 
-**Local prototype only. Not production- or PHI-ready. Results are coder-review
+**Research prototype. Not production- or PHI-ready. Results are coder-review
 candidates, never final assignments. Do not enter patient data.** No diagnosis
-inference, claim submission, deployment, remote LLM, or cloud integration.
+inference, claim submission or remote LLM. Core lookup runs locally or in the
+explicitly configured hosting demo; optional OpenMed stays local.
 
 ## Quick start
 
@@ -151,6 +157,41 @@ Examples of tool arguments:
 
 Python callers can use `ICDService(Catalog(path)).search(...)`, `.suggest(...)`, and
 `.validate(...)` directly, without MCP.
+
+## Screened remote reference client
+
+The optional client screens short public code/phrase inputs **before any connection**,
+without OpenMed or model weights. Suspected identifiers or note-like inputs return
+`privacy_blocked`, without echoing the blocked input. It rejects rather than silently
+redacting clinical meaning. Codes, ordinary terminology and common eponyms remain supported.
+
+**Best effort, not a PII-absence guarantee.** Names and identifiers can be missed,
+and legitimate terminology can be blocked. Never use patient-derived queries.
+Hosted screening happens after receipt. Arbitrary MCP clients, cloud chats,
+platform/proxy logs and a caller's debug logging are outside this client's control.
+The application cannot promise that PII is never transmitted.
+
+Set `ICD10_DEMO_TOKEN` securely in the local environment, not in command arguments.
+Use the verified endpoint from the Render guide in place of the reserved example:
+
+```sh
+.venv/bin/python -m icd10_mcp.reference_client \
+  --url https://your-approved-host.example/mcp --public-terminology <<'JSON'
+{"operation":"lookup","query":"pneumonia","service_date":"2026-10-01","limit":5}
+JSON
+```
+
+For selected-code validation, use
+`{"operation":"validate","codes":["E11.9"],"service_date":"2026-10-01"}` on stdin.
+No note field is accepted. Python callers can use `ReferenceClient.lookup(...)`
+and `.validate(...)` from `icd10_mcp.reference_client`.
+
+The exact service date is checked locally and replaced on the wire by the chosen
+release's public start date. The result restores the requested date locally.
+Unsupported dates fail locally, without fallback or a connection. This reduces
+date disclosure; it does not make a patient-related query safe to upload.
+The client uses HTTPS (literal loopback HTTP only), ignores proxy environment
+settings, uses a constant MCP client identity and sanitizes failures.
 
 ## What is imported
 

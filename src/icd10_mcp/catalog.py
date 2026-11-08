@@ -21,7 +21,7 @@ RELEASE = {
 }
 SCHEMA_VERSION = 2
 DISCLAIMER = (
-    "Coder-review candidates only, not final assignments. Local prototype; "
+    "Coder-review candidates only, not final assignments. Research prototype; "
     "not production- or PHI-ready. No claim submission or encounter-completeness guarantee."
 )
 CODE_PATTERN = re.compile(r"^(?![A-Z]{3})[A-Z][A-Z0-9]{2}(?:\.?[A-Z0-9]{1,4})?$")
