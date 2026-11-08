@@ -1,0 +1,14 @@
+**
+!Dockerfile
+!requirements/
+!requirements/core.lock
+!src/
+!src/icd10_mcp/
+!src/icd10_mcp/*.py
+!deploy/
+!deploy/catalogs.json
+!data/
+!data/catalog.sqlite3
+!data/releases/
+!data/releases/2027/
+!data/releases/2027/catalog.sqlite3

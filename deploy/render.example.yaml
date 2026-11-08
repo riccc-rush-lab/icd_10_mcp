@@ -1,0 +1,26 @@
+# Preparation only. Not Render's auto-discovered render.yaml.
+# Creating a Blueprint service can trigger its INITIAL deploy even with auto-deploys off.
+services:
+  - type: web
+    name: icd10-terminology-demo
+    runtime: python
+    plan: free
+    autoDeployTrigger: 'off'
+    buildCommand: >-
+      python -m pip install --require-hashes -r requirements/core.lock &&
+      python -m icd10_mcp.demo_build --download --output data
+    startCommand: python -m icd10_mcp.demo --public-bind
+    healthCheckPath: /readyz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.14
+      - key: PYTHONPATH
+        value: src
+      - key: PYTHONDONTWRITEBYTECODE
+        value: '1'
+      - key: PYTHONUNBUFFERED
+        value: '1'
+      - key: ICD10_CATALOGS
+        value: data/catalogs.json
+      - key: ICD10_DEMO_TOKEN
+        generateValue: true

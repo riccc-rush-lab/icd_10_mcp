@@ -1,0 +1,2 @@
+# Optional isolated local runtime. Model/dataset terms are separate.
+openmed[hf]==3.1.0

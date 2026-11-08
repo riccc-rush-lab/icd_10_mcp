@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "local-openmed-draft-2026-11-07",
+  "synthetic": true,
+  "warning": "All labels are unreviewed. Active-disease candidate contrasts only, not complete encounter coding or PII recall. No human-reviewed gold standard.",
+  "cases": [
+    {"id":"affirmed","workflow":"openmed","text":"Pneumonia.","service_date":"2026-10-01","expected_codes":["J18.9"],"exhaustive":true,"slice":"affirmed","review":{"status":"unreviewed"},"source":{"reference":"https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/ICD10CM/2027/","member":"icd10cm-table-and-index-2027/icd10cm-index-2027.xml","anchor":"Pneumonia; synthetic statement"}},
+    {"id":"negated","workflow":"openmed","text":"No pneumonia.","service_date":"2026-10-01","expected_codes":[],"forbidden_codes":["J18.9"],"exhaustive":true,"slice":"negation","review":{"status":"unreviewed"},"source":{"reference":"Synthetic active-disease suppression contrast, not an encounter coding policy"}},
+    {"id":"uncertain","workflow":"openmed","text":"Possible pneumonia.","service_date":"2026-10-01","expected_codes":[],"forbidden_codes":["J18.9"],"exhaustive":true,"slice":"uncertainty","review":{"status":"unreviewed"},"source":{"reference":"Synthetic conservative candidate contrast; setting-specific uncertain-diagnosis rules require adjudication"}},
+    {"id":"historical","workflow":"openmed","text":"History of pneumonia.","service_date":"2026-10-01","expected_codes":[],"forbidden_codes":["J18.9"],"exhaustive":true,"slice":"temporality","review":{"status":"unreviewed"},"source":{"reference":"Synthetic historical-disease contrast; not a policy excluding all historical chronic diagnoses"}},
+    {"id":"family","workflow":"openmed","text":"Family history of pneumonia.","service_date":"2026-10-01","expected_codes":[],"forbidden_codes":["J18.9"],"exhaustive":true,"slice":"experiencer","review":{"status":"unreviewed"},"source":{"reference":"Synthetic experiencer contrast; potentially applicable family-history Z codes are outside this case objective"}},
+    {"id":"mixed","workflow":"openmed","text":"No pneumonia. Type 2 diabetes.","service_date":"2026-10-01","expected_codes":["E11.9"],"forbidden_codes":["J18.9"],"exhaustive":false,"slice":"mixed-assertion","review":{"status":"unreviewed"},"source":{"reference":"https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/ICD10CM/2027/","member":"icd10cm-table-and-index-2027/icd10cm-index-2027.xml","anchor":"Diabetes > type 2; synthetic mixed assertions"}},
+    {"id":"email","workflow":"openmed","text":"Email: avery@example.invalid. Pneumonia.","service_date":"2026-10-01","expected_codes":["J18.9"],"exhaustive":true,"slice":"synthetic-identifier-context","review":{"status":"unreviewed"},"source":{"reference":"Synthetic reserved-domain email plus pneumonia contrast. This coding evaluator does not measure PII span recall."}},
+    {"id":"phone","workflow":"openmed","text":"Call 202-555-0142. Pneumonia.","service_date":"2026-10-01","expected_codes":["J18.9"],"exhaustive":true,"slice":"synthetic-identifier-context","review":{"status":"unreviewed"},"source":{"reference":"Synthetic fictional 555-01xx phone plus pneumonia contrast, not a PII gold standard"}},
+    {"id":"date","workflow":"openmed","text":"DOB: 2000-01-01. Pneumonia.","service_date":"2026-10-01","expected_codes":["J18.9"],"exhaustive":true,"slice":"synthetic-identifier-context","review":{"status":"unreviewed"},"source":{"reference":"Entirely generated date plus pneumonia contrast, not a real date of birth or PII gold standard"}}
+  ]
+}
