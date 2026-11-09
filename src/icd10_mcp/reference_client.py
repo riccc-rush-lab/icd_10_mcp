@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import sys
+from contextlib import asynccontextmanager
 from datetime import date
 from urllib.parse import urlsplit
 
@@ -20,6 +21,79 @@ from .cli_safety import SafeArgumentParser
 from .client_config import load_token_file
 from .privacy import PRIVACY_NOTICE, blocked_codes, blocked_phrase, blocked_response
 from .releases import PROFILES
+
+_MAX_REMOTE_RESPONSE_BYTES = 262144
+
+
+class _BoundedResponseStream(httpx.AsyncByteStream):
+    def __init__(self, stream, rejected):
+        self.stream = stream
+        self.rejected = rejected
+
+    async def __aiter__(self):
+        received = 0
+        async for chunk in self.stream:
+            received += len(chunk)
+            if received > _MAX_REMOTE_RESPONSE_BYTES:
+                self.rejected.set()
+                raise ValueError("Remote response exceeds its limit.")
+            yield chunk
+
+    async def aclose(self):
+        await self.stream.aclose()
+
+
+async def _bound_response(response, rejected):
+    length = response.headers.get("content-length")
+    try:
+        declared = int(length) if length is not None else 0
+    except ValueError:
+        declared = -1
+    if (
+        response.is_redirect
+        or response.headers.get("content-encoding", "identity").strip().lower() != "identity"
+        or not 0 <= declared <= _MAX_REMOTE_RESPONSE_BYTES
+    ):
+        rejected.set()
+        await response.aclose()
+        raise ValueError("Remote response rejected.") from None
+    if response.is_stream_consumed:
+        if len(response.content) > _MAX_REMOTE_RESPONSE_BYTES:
+            rejected.set()
+            await response.aclose()
+            raise ValueError("Remote response exceeds its limit.")
+    else:
+        response.stream = _BoundedResponseStream(response.stream, rejected)
+
+
+@asynccontextmanager
+async def _bounded_http_client(token, transport):
+    rejected = asyncio.Event()
+
+    async def inspect(response):
+        await _bound_response(response, rejected)
+
+    async def stop_rejected_exchange():
+        await rejected.wait()
+        raise ValueError("Remote response rejected.")
+
+    async with asyncio.timeout(90), asyncio.TaskGroup() as tasks:
+        watcher = tasks.create_task(stop_rejected_exchange())
+        try:
+            async with httpx.AsyncClient(
+                headers={
+                    "Accept-Encoding": "identity",
+                    **({"Authorization": f"Bearer {token}"} if token is not None else {}),
+                },
+                transport=transport,
+                timeout=90,
+                follow_redirects=False,
+                trust_env=False,
+                event_hooks={"response": [inspect]},
+            ) as client:
+                yield client
+        finally:
+            watcher.cancel()
 
 
 class ReferenceClient:
@@ -96,13 +170,7 @@ class ReferenceClient:
             }
         arguments = {**arguments, "service_date": anchor}
         try:
-            async with httpx.AsyncClient(
-                headers={"Authorization": f"Bearer {self.token}"} if self.token is not None else {},
-                transport=self.transport,
-                timeout=90,
-                follow_redirects=False,
-                trust_env=False,
-            ) as client:
+            async with _bounded_http_client(self.token, self.transport) as client:
                 async with streamable_http_client(self.url, http_client=client) as (
                     read,
                     write,

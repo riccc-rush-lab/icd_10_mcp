@@ -1,4 +1,5 @@
 import asyncio
+import gzip
 import json
 import os
 import subprocess
@@ -357,3 +358,108 @@ def test_client_rejects_unsafe_token_files_without_echoing_paths_or_values(tmp_p
         assert TOKEN not in result.stdout + result.stderr
         assert "PRIVATE-" not in result.stdout + result.stderr
         assert "avery@example.invalid" not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("representation", ["chunked", "declared", "compressed", "bad-length"])
+def test_remote_response_stream_is_bounded_before_sdk_parsing(representation, caplog):
+    from icd10_mcp.reference_client import ReferenceClient
+
+    generated = []
+    closed = []
+    encodings = []
+
+    class UpstreamBytes(httpx.AsyncByteStream):
+        def __init__(self, body):
+            self.body = body
+
+        async def __aiter__(self):
+            for offset in range(0, len(self.body), 4096):
+                generated.append(True)
+                yield self.body[offset : offset + 4096]
+
+        async def aclose(self):
+            closed.append(True)
+
+    def upstream(request):
+        encodings.append(request.headers.get("accept-encoding"))
+        payload = json.loads(request.content)
+        if payload["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        if payload["method"] == "initialize":
+            body = json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": {
+                        "protocolVersion": "2025-11-25",
+                        "capabilities": {},
+                        "serverInfo": {"name": "external-fixture", "version": "1"},
+                        "instructions": "x" * 393216,
+                    },
+                }
+            ).encode()
+            headers = {"Content-Type": "application/json"}
+            if representation == "declared":
+                headers["Content-Length"] = str(len(body))
+            elif representation == "compressed":
+                body = gzip.compress(body)
+                headers["Content-Encoding"] = "gzip"
+            elif representation == "bad-length":
+                headers["Content-Length"] = "PRIVATE-UPSTREAM-HEADER-MARKER"
+            return httpx.Response(200, headers=headers, stream=UpstreamBytes(body))
+        return httpx.Response(
+            200,
+            json={
+                "jsonrpc": "2.0",
+                "id": payload["id"],
+                "result": {"content": [], "structuredContent": {"status": "remote_unavailable"}},
+            },
+        )
+
+    async def run():
+        client = ReferenceClient(URL, transport=httpx.MockTransport(upstream))
+        result = await asyncio.wait_for(client.lookup("E11.9", "2026-04-01"), 2)
+        assert result["status"] == "remote_unavailable"
+        assert len(generated) == (65 if representation == "chunked" else 0)
+        assert closed
+        assert all(value == "identity" for value in encodings)
+        assert "PRIVATE-UPSTREAM-HEADER-MARKER" not in json.dumps(result) + caplog.text
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("status", [307, 308])
+@pytest.mark.parametrize("absolute_location", [False, True])
+def test_remote_redirect_never_contacts_another_path(status, absolute_location, caplog):
+    from icd10_mcp.reference_client import ReferenceClient
+
+    visited = []
+    destination = "/redirected?value=SYNTHETIC-REDIRECT-MARKER"
+    if absolute_location:
+        destination = "https://trial.onrender.com" + destination
+
+    def upstream(request):
+        visited.append(request.url.path)
+        if request.url.path == "/mcp":
+            return httpx.Response(status, headers={"Location": destination})
+        payload = json.loads(request.content)
+        if payload["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        if payload["method"] == "initialize":
+            result = {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {},
+                "serverInfo": {"name": "external-fixture", "version": "1"},
+            }
+        else:
+            result = {"content": [], "structuredContent": {"status": "redirect_was_followed"}}
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": payload["id"], "result": result})
+
+    async def run():
+        client = ReferenceClient(URL, transport=httpx.MockTransport(upstream))
+        result = await asyncio.wait_for(client.lookup("E11.9", "2026-04-01"), 2)
+        assert result["status"] == "remote_unavailable"
+        assert visited and set(visited) == {"/mcp"}
+        assert "SYNTHETIC-REDIRECT-MARKER" not in json.dumps(result) + caplog.text
+
+    asyncio.run(run())

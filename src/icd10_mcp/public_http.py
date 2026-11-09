@@ -52,39 +52,73 @@ class PublicHTTPGuard:
             self.requests = 0
         if self.requests >= self.limits.requests_per_window:
             remaining = self.limits.window_seconds - (now - self.window_started)
-            await JSONResponse(
-                {"status": "rate_limited"},
-                status_code=429,
-                headers={
-                    "Retry-After": str(max(1, math.ceil(remaining))),
-                    "Cache-Control": "no-store",
-                },
-            )(scope, receive, send)
+            await self._reject(
+                JSONResponse(
+                    {"status": "rate_limited"},
+                    status_code=429,
+                    headers={
+                        "Retry-After": str(max(1, math.ceil(remaining))),
+                        "Cache-Control": "no-store",
+                    },
+                ),
+                scope,
+                receive,
+                send,
+            )
             return
         self.requests += 1
         if self.active >= self.limits.max_in_flight:
-            await JSONResponse(
-                {"status": "busy"},
-                status_code=503,
-                headers={"Retry-After": "1", "Cache-Control": "no-store"},
-            )(scope, receive, send)
+            await self._reject(
+                JSONResponse(
+                    {"status": "busy"},
+                    status_code=503,
+                    headers={"Retry-After": "1", "Cache-Control": "no-store"},
+                ),
+                scope,
+                receive,
+                send,
+            )
             return
         self.active += 1
+        response_started = False
+
+        async def guarded_send(message):
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        async def exchange():
+            response = await self._handle(scope, receive)
+            if response is not None:
+                await response(scope, receive, guarded_send)
+
         try:
             try:
-                response = await asyncio.wait_for(
-                    self._handle(scope, receive), self.limits.request_timeout_seconds
-                )
+                await asyncio.wait_for(exchange(), self.limits.request_timeout_seconds)
             except TimeoutError:
-                response = JSONResponse(
-                    {"status": "request_timed_out"},
-                    status_code=504,
-                    headers={"Retry-After": "1", "Cache-Control": "no-store"},
-                )
-            if response is not None:
-                await response(scope, receive, send)
+                if not response_started:
+                    await self._reject(
+                        JSONResponse(
+                            {"status": "request_timed_out"},
+                            status_code=504,
+                            headers={"Retry-After": "1", "Cache-Control": "no-store"},
+                        ),
+                        scope,
+                        receive,
+                        send,
+                    )
         finally:
             self.active -= 1
+
+    async def _reject(self, response, scope, receive, send):
+        try:
+            await asyncio.wait_for(
+                response(scope, receive, send),
+                min(1.0, self.limits.request_timeout_seconds),
+            )
+        except TimeoutError:
+            pass
 
     async def _handle(self, scope, receive):
         body = bytearray()

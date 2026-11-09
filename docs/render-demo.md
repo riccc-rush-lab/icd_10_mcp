@@ -6,7 +6,7 @@ notes, OpenMed, patient data, institutional credentials or remote LLM. The local
 stdio and loopback launcher's defaults are unchanged. Additional deployments,
 paid resources and source publication still require approval.
 
-## Public no-login release: activation pending
+## Public no-login release: activated 2026-11-08
 
 The user approved implementation, tests, GitHub publication and redeployment of
 the **existing Free service only**, without paid resources or billing changes.
@@ -28,9 +28,19 @@ does not cap every billable category. Shared allowances mean heavy public use ca
 also suspend other Free services. Provider terms can change; no perpetual $0 or
 availability guarantee is claimed, and billing status was not independently audited.
 
-Deployment is waiting for Render connector authorization. Until deployment and live
-verification, the existing endpoint remains protected. No billing, old-service or
-unrelated-service change is authorized. See [connection instructions](connect.md).
+After browser authorization, `ICD10_PUBLIC_ACCESS=1` was set on the existing service.
+Deployment `dep-dbofn15g1s2s73f2a7cg`, application commit `9aed9d9`, became live at
+22:47:07Z. Ten sequential anonymous public tool calls passed in 3.528 seconds across
+official SDK HTTP, the CLI and local stdio bridge. Checks covered both releases,
+independent CDC descriptions, selected-code validity, the `C78.31` release boundary,
+invalid codes, nonassignable headers and readiness. Native client GUIs were not tested.
+The Free/Oregon/one-instance/auto-deploy-off settings were rechecked afterward.
+No billing, old-service or unrelated-service changes were made.
+
+The subsequent repository hardening bounds response writes and remote-client
+response reads; **it has not been deployed**. This change was approved for commit
+and GitHub push only. See [the security policy](../SECURITY.md) and
+[connection instructions](connect.md).
 
 ## Original branded replacement, 2026-11-08
 
@@ -72,7 +82,11 @@ These checks are best effort, not PII certification; server checks happen after
 receipt. Do not enter patient data, even through this client or a cloud MCP chat.
 Core lookup stays independent of local OpenMed/models.
 
-## Bounded load measurement
+## Historical protected-mode load measurement
+
+The following measurement predates public admission limits. It does not measure
+the current anonymous deployment's throughput. Do not repeat this old benchmark
+against the public endpoint or treat 120 HTTP requests/minute as 120 tool calls.
 
 `icd10_mcp.load_check` runs fixed public exact-code, phrase, header and selected-code
 workloads through the screened client across the two public release anchors.

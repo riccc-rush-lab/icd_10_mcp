@@ -3,17 +3,18 @@
 **Public terminology and synthetic examples only.** Not production-, clinical- or
 PHI-ready. Never enter patient data, even to test the privacy screen.
 
-**Deployment status:** public no-login mode is implemented in source, but hosted
-activation is pending deployment and live verification. Until then, the existing
-endpoint still requires its operator-issued token. The no-login instructions below
-apply after activation. See [verification](verification.md).
+**Deployment status:** public no-login access was deployed and verified on
+2026-11-08 at commit `9aed9d9`. Ten anonymous public tool calls passed through the
+official SDK, CLI and local bridge. Subsequent repository hardening has not been
+deployed. Native client GUI checks remain manual. See [verification](verification.md).
 
 Endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
 This is an MCP interface, not a browser search page.
 
 ## Option 1: connect by URL, no local installation
 
-After public-mode activation, no signup, API key or OAuth client is needed.
+No server signup, API key or OAuth client is needed. Use **Streamable HTTP**,
+not the legacy SSE transport. Client account/plan requirements are separate.
 
 1. In Claude, open **Customize → Connectors → Add custom connector**. Organization
    owners may need to add it first under Organization settings.
@@ -33,6 +34,60 @@ Server screening occurs after receipt. Conversation text can already have been
 processed by Claude before a tool call. Neither no-login access nor screening makes
 patient-derived input acceptable. Direct clients send the date they supply unchanged.
 Only use public example dates and terminology.
+
+### Other MCP clients
+
+These are documented setup recipes, not completed end-to-end app acceptance.
+Inspect the actual discovered tools and returned result in each client.
+
+Run only the command for your installed client:
+
+```sh
+# Claude Code, then restart and inspect /mcp:
+claude mcp add --transport http --scope user icd10-reference https://icd10-reference-mcp.onrender.com/mcp
+
+# OpenAI Codex CLI / IDE, then restart and inspect /mcp:
+codex mcp add icd10-reference --url https://icd10-reference-mcp.onrender.com/mcp
+
+# Gemini CLI, then restart and inspect /mcp:
+gemini mcp add --transport http --scope user icd10-reference https://icd10-reference-mcp.onrender.com/mcp
+
+# Factory Droid, then inspect /mcp:
+droid mcp add icd10-reference https://icd10-reference-mcp.onrender.com/mcp --type http --no-oauth
+```
+
+For **Cursor**, merge this entry into your existing `~/.cursor/mcp.json`
+or project `.cursor/mcp.json`, then enable the server in MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "icd10-reference": {
+      "url": "https://icd10-reference-mcp.onrender.com/mcp"
+    }
+  }
+}
+```
+
+For **VS Code / GitHub Copilot**, run **MCP: Add Server** from the Command Palette,
+choose **HTTP**, enter the endpoint and `icd10-reference` ID, and choose the desired
+scope (current guided setup offers **Global → Copilot Global**). Enable its tools
+through **Chat: Open Customizations → Tools**. Versions use different configuration
+locations/schemas; do not paste Cursor JSON into `.vscode/mcp.json`.
+
+For **ChatGPT web**, follow its current custom-MCP/plugin setup and select
+**No authentication**. Availability depends on plan and workspace policy.
+Search/fetch-only connectors do not establish compatibility with these custom
+tools. ChatGPT web does not read the Codex CLI configuration.
+
+First-party references: [Claude Code](https://code.claude.com/docs/en/mcp),
+[Codex](https://developers.openai.com/codex/mcp),
+[Gemini CLI](https://geminicli.com/docs/tools/mcp-server/),
+[Droid](https://docs.factory.com/harness/mcp),
+[Cursor](https://cursor.com/docs/mcp),
+[VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), and
+[ChatGPT](https://developers.openai.com/plugins/deploy/connect-chatgpt).
+Labels and support can change; managed clients may block unapproved servers.
 
 ## Option 2: screened Python, terminal or local stdio bridge
 
@@ -54,7 +109,7 @@ uv sync --frozen --python 3.13
 
 ### Terminal
 
-After public activation, from the checkout on macOS/Linux:
+From the checkout on macOS/Linux:
 
 ```sh
 .venv/bin/python -m icd10_mcp.reference_client \
@@ -74,6 +129,12 @@ For validation, replace stdin JSON with:
 Expect `results[0].code_validity.status` to be `valid`. No note field is accepted.
 `--anonymous` sends no credential, even if an old token is in the environment.
 Exit `2` means blocked/invalid input or unavailable service.
+The hardened local client requests uncompressed responses, rejects unsupported
+compression and caps remote bodies at 256 KiB before SDK parsing. Invalid or
+oversized upstream responses return generic `remote_unavailable`; the whole
+exchange has a 90-second cooperative deadline.
+Redirects are rejected before SDK processing, even to another path on the same
+host. Configure the final HTTPS `/mcp` URL, not a redirecting alias.
 
 ### Python
 
@@ -163,6 +224,9 @@ MCP initialization/notifications also consume requests. Limits reset on process
 restart and are not distributed/monthly quotas. They do not stop traffic from
 reaching the hosting provider or impose a hard CPU, socket-delivery or billing cap.
 Oversized responses are replaced, not silently truncated clinical instructions.
+The hardened repository extends that deadline to response writes and bounds
+rejection writes, with at most one extra second to attempt a pre-header timeout
+response. Those server changes are **not yet deployed**; see [SECURITY](../SECURITY.md).
 
 The operator's zero-spend setup depends on **Free workspace/resources, no linked
 payment method, no paid add-ons/APIs, and accepting shutdown at exhausted quotas**.

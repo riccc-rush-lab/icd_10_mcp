@@ -1,11 +1,15 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "icd10-local-mcp"
 version = "0.1.0"
 description = "Local, deterministic ICD-10-CM coder-review prototype, not for clinical use"
+readme = "README.md"
+authors = [{name = "JC Rojas"}]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.30,<2",

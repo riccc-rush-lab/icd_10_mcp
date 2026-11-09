@@ -1,5 +1,11 @@
 # ICD10 Reference MCP
 
+By **JC Rojas**. Original project code is licensed under [Apache-2.0](LICENSE);
+see [NOTICE](NOTICE), [third-party materials](THIRD_PARTY_NOTICES.md) and
+[citation metadata](CITATION.cff). Commercial reuse is permitted under the
+license; preserve applicable notices. Scholarly citation is appreciated, not
+an additional license condition.
+
 Local-first ICD-10-CM reference lookup for healthcare teams and researchers.
 This is a descriptive working name, not trademark clearance or clinical approval.
 
@@ -20,8 +26,9 @@ Technical check results and remaining gates: [verification](docs/verification.md
 Step-by-step setup and acceptance: [local trial guide](docs/local-trial.md).
 Terminology-only hosting trial: [Render demo](docs/render-demo.md).
 **Connecting as a user?** Follow [Python/terminal and Claude Desktop setup](docs/connect.md).
-The hosted path needs no local catalogs or models. Public no-login mode is prepared;
-activation is pending deployment and live verification, as noted in the connection guide.
+The hosted path needs no local catalogs or models. Public no-login access was
+deployed and verified on 2026-11-08 at commit `9aed9d9`. Subsequent repository
+hardening has not been deployed; see the [security policy](SECURITY.md).
 For remote lookup, use the [screened local client](#screened-remote-reference-client),
 not a patient note in a cloud chat.
 

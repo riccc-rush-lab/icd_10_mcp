@@ -1,6 +1,7 @@
 import asyncio
 
 import httpx
+import pytest
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
@@ -235,5 +236,73 @@ def test_public_protocol_failures_never_echo_envelope_or_header_values(catalog_p
                     assert response.json() == {"status": "invalid_request"}
         assert "PRIVATE-PROTOCOL-MARKER" not in caplog.text
         assert "PRIVATE-HEADER-MARKER" not in caplog.text
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("stall_at", ["http.response.start", "http.response.body"])
+@pytest.mark.parametrize("quota_rejection", [False, True])
+def test_public_deadline_releases_capacity_when_response_transport_stalls(
+    catalog_path, stall_at, quota_rejection
+):
+    from icd10_mcp.public_http import PublicLimits
+
+    async def run():
+        app = create_demo_app(
+            catalog_path,
+            hostname="trial.onrender.com",
+            public_access=True,
+            public_limits=PublicLimits(
+                max_in_flight=1,
+                request_timeout_seconds=0.02,
+                requests_per_window=1 if quota_rejection else 120,
+            ),
+        )
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "https",
+            "path": "/mcp",
+            "raw_path": b"/mcp",
+            "root_path": "",
+            "query_string": b"",
+            "headers": [(b"host", b"trial.onrender.com"), (b"content-type", b"application/json")],
+            "server": ("trial.onrender.com", 443),
+            "client": ("127.0.0.1", 12345),
+        }
+        body_started = asyncio.Event()
+        messages = []
+
+        async def receive():
+            return {"type": "http.request", "body": b"{}", "more_body": False}
+
+        async def stalled_send(message):
+            messages.append(message)
+            if message["type"] == stall_at:
+                body_started.set()
+                await asyncio.Event().wait()
+
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="https://trial.onrender.com"
+            ) as client:
+                if quota_rejection:
+                    assert (await client.post("/mcp", content="")).status_code == 400
+            request = asyncio.create_task(app(scope, receive, stalled_send))
+            try:
+                await asyncio.wait_for(body_started.wait(), 1)
+                await asyncio.wait_for(asyncio.shield(request), 0.25)
+                assert sum(item["type"] == "http.response.start" for item in messages) == 1
+                async with httpx.AsyncClient(
+                    transport=httpx.ASGITransport(app=app), base_url="https://trial.onrender.com"
+                ) as client:
+                    expected = 429 if quota_rejection else 400
+                    assert (await client.post("/mcp", content="")).status_code == expected
+                    assert (await client.get("/readyz")).status_code == 200
+            finally:
+                request.cancel()
+                await asyncio.gather(request, return_exceptions=True)
 
     asyncio.run(run())

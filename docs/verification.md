@@ -14,8 +14,8 @@ Historical non-Git comparison baseline:
   FY2027: 74,879 assignable codes, 23,524 headers, 47,344 hierarchy nodes.
 - Core environment has no installed `openmed` package. Public lookup succeeds for
   April `E11.9` and FY2027-only `C78.31`; the new code is not returned for April.
-- Most recent full opt-in suite (2026-11-08): **237 passed in 211.38 seconds**;
-  the public-access implementation and earlier deployment evidence are recorded below.
+- Most recent full opt-in suite (2026-11-08): **249 passed in 190.87 seconds**;
+  the focused hardening/licensing and earlier deployment evidence are recorded below.
 - Earlier full opt-in suite (2026-11-07): **205 passed in 101.63 seconds**, including both fresh
   corpus imports, partial-XML rejection, actual local model weights and MCP transports.
   This run followed local-only Render preparation and its 19 demo/build checks.
@@ -24,9 +24,10 @@ Historical non-Git comparison baseline:
   The earlier 172-test run followed the importer fix and Starlette upgrade to 1.10.0.
 - Latest Ruff lint and formatting passed across all 50 files in `src`, `tests`, and `scripts`.
 - The initial core dependency audit failed on Starlette advisories. The patched,
-  regenerated `requirements/core.lock` audit now reports no known vulnerabilities.
+  regenerated `requirements/core.lock` audit then reported no known vulnerabilities.
   The separate OpenMed lock audit earlier in this build also reported no known
-  vulnerabilities. Neither is a security certification.
+  vulnerabilities. These are historical build-time results, not fresh audits for
+  the current hardening. Neither is a security certification.
 - Official MCP stdio and in-memory HTTP client calls, a real loopback launcher,
   startup artifact admission, host/origin checks, 64 KiB body limits, missing-catalog
   readiness and an invalid-input payload-log regression pass.
@@ -363,9 +364,75 @@ See `docs/render-demo.md` for the deployed configuration and remaining restricti
   8 KiB input, 256 KiB output, 15-second cooperative input/application deadline.
   Health probes are exempt; state resets on restart. This is not a distributed
   quota, hard CPU bound, socket-write deadline, monthly budget or provider bill cap.
-- Deployment is pending Render connector authorization. No new hosted acceptance,
-  no extra load test, and no actual Claude UI/Windows runtime acceptance is claimed.
-  Current hosted app is still the previously verified token-protected deployment.
+- At that implementation stage, deployment awaited Render authorization and the
+  previous protected build was still live. Subsequent activation is recorded below.
+  No extra load test or actual Claude UI/Windows runtime acceptance was claimed.
+
+## Public activation, 2026-11-08
+
+- After separate browser authorization, the existing Free service received
+  `ICD10_PUBLIC_ACCESS=1`. Deployment `dep-dbofn15g1s2s73f2a7cg` made the tested
+  commit `9aed9d95177602ec9d29e21b67108d6191e98a94` live at 22:47:07Z.
+- One reserved acceptance run passed ten sequential anonymous public tool calls
+  in 3.528 seconds through official SDK HTTP, the project CLI and local stdio bridge.
+  Independent CDC descriptions matched for `E11.9` and `J18.9` across both release
+  dates. Selected-code checks verified the `C78.31` release boundary, malformed
+  code handling and nonassignable headers. Readiness returned 200/ready, exactly
+  two read-only note-free tools were discovered, and direct SDK traffic sent no
+  Authorization header. CLI ignored an invalid inherited token; the bridge ran
+  without a token file. Private evidence:
+  `.scratch/public-access-20261108/activation-acceptance-report.json`.
+- Free/Oregon/one instance/automatic deploys off were rechecked after deployment.
+  No paid resource, billing, old-service or unrelated-service change was made.
+  No load test or native client GUI acceptance followed from these checks.
+
+## Focused MCP hardening and licensing, 2026-11-08
+
+- User chose Apache-2.0, copyright/attribution **JC Rojas**, focused MCP work on
+  main, and commit/push only. This is not a whole-repository security audit.
+- The admitted request deadline now covers response writes as well as body/app
+  work. Stalled header/body transports release capacity, never start a second
+  response, and temporary rejection writes have a bounded budget. A pre-header
+  timeout can attempt a generic 504 for at most one additional second.
+- The screened client's upstream response stream is capped at 256 KiB before SDK
+  parsing. Oversized/malformed declared lengths and compressed responses are
+  rejected before body reads; it requests identity encoding and closes rejected
+  streams. Supervision aborts rejected exchanges even when the SDK swallows a
+  parser exception; the whole exchange has a 90-second cooperative deadline.
+- External ASGI/HTTP adapters reproduced the stalled-write and oversized-response
+  gaps before the corresponding fixes. The first oversized-response fixture was
+  invalid JSON and stalled SDK initialization, so it was corrected to a valid,
+  oversized MCP initialization response before observing the intended overread.
+  Four stalled-send cases and four upstream-budget cases now pass. No owned mocks,
+  private-helper assertions, database side channels or patient inputs were used.
+- Initial default suite: **220 passed, 25 opt-in skips in 22.27 seconds**.
+  Ruff lint and formatting pass across 50 files. The offline uv lock check passes;
+  runtime dependency versions/hashes and optional model assets are unchanged.
+- The initial full corpus/model rerun passed **245 tests in 207.21 seconds**.
+  Independent Standards review found no actionable violations or smells. Spec
+  review then reproduced a pre-existing redirect-policy gap: MCP 1.30 follows
+  same-origin redirects independently of HTTPX's `follow_redirects=False`.
+  Four external-HTTP regressions failed before the fix, confirming redirected
+  paths were contacted. The client now rejects 3xx responses in its response
+  guard, before SDK redirect handling; the 51 targeted MCP/client tests pass.
+- After the redirect fix, the default suite passes **224 tests with 25 opt-in
+  skips in 27.70 seconds**; Ruff lint/format and the offline lock check pass.
+  Final full corpus/model rerun: **249 passed in 190.87 seconds**. Standards
+  re-review found zero actionable breaches/smells; Spec re-review confirmed the
+  redirect finding resolved with no remaining focused-review issue.
+- LICENSE, NOTICE, third-party scope notices, citation metadata and Python package
+  metadata credit JC Rojas. Original code is Apache-2.0; third-party data,
+  dependencies and model assets retain separate terms. No worldwide corpus or
+  training-data rights clearance, mandatory academic citation or endorsement is
+  asserted. [SECURITY.md](../SECURITY.md) records safe reporting and residual limits.
+- Offline wheel/sdist builds passed. Both artifacts carry `Author: JC Rojas`,
+  `License-Expression: Apache-2.0` and the three exact license/notice files.
+  The 34-file wheel and 86-file sdist exclude ignored data/model/secret paths.
+  Canonical license words match the standard Apache text; citation YAML parses,
+  and 30 relative documentation links resolve. This is not a complete third-party
+  rights or secret-disclosure audit.
+- No new hosted acceptance or deployment was authorized for this hardening.
+  The live application remains the public-access baseline `9aed9d9`.
 
 ## Observed red-to-green slices
 

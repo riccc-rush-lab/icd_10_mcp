@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software in research, please cite it using this metadata."
+type: software
+title: "ICD10 Reference MCP"
+authors:
+  - family-names: "Rojas"
+    given-names: "JC"
+repository-code: "https://github.com/riccc-rush-lab/icd_10_mcp"
+license: Apache-2.0
