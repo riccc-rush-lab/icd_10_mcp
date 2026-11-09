@@ -431,8 +431,36 @@ See `docs/render-demo.md` for the deployed configuration and remaining restricti
   Canonical license words match the standard Apache text; citation YAML parses,
   and 30 relative documentation links resolve. This is not a complete third-party
   rights or secret-disclosure audit.
-- No new hosted acceptance or deployment was authorized for this hardening.
-  The live application remains the public-access baseline `9aed9d9`.
+- At initial source publication, no new deployment was authorized and the live
+  application remained `9aed9d9`. The subsequent authorized rollout is below.
+
+## Hardening rollout
+
+- The user subsequently requested deployment and repository fixes. Existing
+  service `srv-dbocb63l550s739ah2vg` received reviewed commit
+  `def06eefb9ce298fdcdf42bfb1c057bfdc17053d`, deployment
+  `dep-dboinu8u01pc73fd5big`, live at `2026-11-09T02:13:41Z` (UTC).
+- One separately reserved public-only acceptance run passed all **nine tool
+  calls in 4.161 seconds** through SDK HTTP, the anonymous CLI and local stdio
+  bridge. Readiness was 200/ready; the expected identity and exactly two read-only,
+  note-free tools were discovered. Independent CDC descriptions matched for
+  `E11.9` across both releases and `J18.9` for FY2027; selected-code validation
+  verified the `C78.31` release boundary. Nonassignable headers and malformed codes
+  behaved correctly. CLI/bridge date-minimization flags passed; the CLI ignored
+  an invalid inherited token. The direct SDK counter recorded 11 HTTP requests
+  and zero Authorization headers; it does not count subprocess HTTP traffic.
+- Private report:
+  `.scratch/rollout-dep-dboinu8u01pc73fd5big/acceptance-report.json`.
+  No extra load test, patient input, native client GUI check or clinical
+  acceptance was performed. Source commit `def06ee` already passed 249 full
+  corpus/model tests; those were not rerun for this documentation-only follow-up.
+- Repository docs now distinguish current anonymous hosting from the protected
+  default, document the correct 8 KiB/64 KiB request limits and remove stale
+  not-deployed claims. Apache-2.0/JC Rojas attribution remains unchanged.
+- Post-rollout provider reads confirmed Free/Oregon/one instance, `/readyz`,
+  automatic deploys off and `ICD10_PUBLIC_ACCESS=1`. No service configuration,
+  billing, old-service or unrelated-resource write was made. Documentation checks
+  passed for 29 relative links and four rollout anchors.
 
 ## Observed red-to-green slices
 

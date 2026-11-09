@@ -48,6 +48,9 @@ APIs on the assumption that application rate limits guarantee zero charges.
 
 ## Deployment status
 
-Public access was verified on 2026-11-08 at commit `9aed9d9`. The subsequent
-hardening described above is committed/pushed separately and has **not** been
-deployed as part of this change. Deployment requires separate operator approval.
+After separate operator approval, reviewed hardening commit `def06ee` became
+live at `2026-11-09T02:13:41Z` (UTC). Nine public acceptance calls passed through
+SDK HTTP, the CLI and local stdio bridge. The existing service remains Free,
+Oregon, one instance, with automatic deployments disabled. No billing or resource
+settings changed. This is technical acceptance, not a security certification.
+See [deployment evidence](docs/verification.md#hardening-rollout).

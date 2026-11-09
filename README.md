@@ -26,9 +26,11 @@ Technical check results and remaining gates: [verification](docs/verification.md
 Step-by-step setup and acceptance: [local trial guide](docs/local-trial.md).
 Terminology-only hosting trial: [Render demo](docs/render-demo.md).
 **Connecting as a user?** Follow [Python/terminal and Claude Desktop setup](docs/connect.md).
-The hosted path needs no local catalogs or models. Public no-login access was
-deployed and verified on 2026-11-08 at commit `9aed9d9`. Subsequent repository
-hardening has not been deployed; see the [security policy](SECURITY.md).
+The hosted path needs no local catalogs or models. Public no-login access and
+the reviewed hardening are live at commit `def06ee`. Nine public acceptance calls
+passed across SDK HTTP, the CLI and local bridge; see the
+[deployment evidence](docs/verification.md#hardening-rollout) and
+[security policy](SECURITY.md).
 For remote lookup, use the [screened local client](#screened-remote-reference-client),
 not a patient note in a cloud chat.
 

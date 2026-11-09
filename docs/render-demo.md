@@ -15,7 +15,8 @@ token-protected default. Other values fail startup. Both full catalogs are still
 required. No signup or identity-provider dependency was added.
 
 Public admission is per process: 120 HTTP requests/60 seconds, four active requests,
-8 KiB input, 256 KiB output and a 15-second cooperative body/application deadline.
+8 KiB input, 256 KiB output and a 15-second cooperative exchange deadline, including
+response writes in the hardened build.
 Minimal GET health probes bypass admission. Response limits replace oversized
 results, not truncate coding instructions. These are abuse controls, not distributed
 quotas, strict CPU/socket guarantees or a hosting bill cap.
@@ -37,10 +38,16 @@ invalid codes, nonassignable headers and readiness. Native client GUIs were not 
 The Free/Oregon/one-instance/auto-deploy-off settings were rechecked afterward.
 No billing, old-service or unrelated-service changes were made.
 
-The subsequent repository hardening bounds response writes and remote-client
-response reads; **it has not been deployed**. This change was approved for commit
-and GitHub push only. See [the security policy](../SECURITY.md) and
-[connection instructions](connect.md).
+After separate rollout approval, reviewed hardening commit `def06ee` became live
+in deployment `dep-dboinu8u01pc73fd5big` at `2026-11-09T02:13:41Z` (UTC).
+It bounds response writes; the updated local client also bounds response reads
+and rejects SDK redirects. One reserved public-only acceptance run passed all
+nine tool calls in 4.161 seconds through SDK HTTP, the CLI and local stdio bridge.
+It checked both releases, independent CDC descriptions, selected-code validity,
+the new-code boundary, headers, malformed codes, readiness and date minimization.
+No load test, billing/resource change or native client GUI acceptance was made.
+See [deployment evidence](verification.md#hardening-rollout),
+[the security policy](../SECURITY.md) and [connection instructions](connect.md).
 
 ## Original branded replacement, 2026-11-08
 
@@ -185,27 +192,30 @@ example remains inactive and is not linked to the deployed service.
 
 ## Authentication and transport
 
-The demo requires `ICD10_DEMO_TOKEN` and one exact hostname. On Render the hostname
-comes from `RENDER_EXTERNAL_HOSTNAME`; local tests can set `ICD10_DEMO_HOSTNAME`.
-The example asks Render to generate a 256-bit base64 secret, not a source-code value.
-For manual local testing, use a cryptographically random secret of at least 32
-characters, stored outside source control. Do not paste it into chat, URLs, command
-arguments, shell history or logs. Set the environment securely before running.
+The current public service explicitly sets `ICD10_PUBLIC_ACCESS=1`. It accepts
+anonymous terminology calls without a bearer token. Leave client credentials
+empty; see the [connection guide](connect.md).
 
-Every non-probe request requires a single `Authorization: Bearer ...` header.
-Query parameters and duplicate Authorization headers do not authenticate. Wrong
-credentials return a generic 401. GET `/healthz` and `/readyz` are intentionally
-anonymous, minimal operational probes, not clinical status endpoints.
+**Protected mode remains the default** when the flag is absent or `0`. It requires
+`ICD10_DEMO_TOKEN`, a cryptographically random secret of at least 32 characters,
+stored outside source control. The inactive example requests a provider-generated
+secret, not a source-code value. Protected non-probe requests require a single
+`Authorization: Bearer ...` header; query parameters and duplicate headers do not
+authenticate. Wrong credentials return a generic 401. Never put secrets in chat,
+URLs, command arguments, shell history or logs.
 
-Host validation allows only the configured hostname. Origin validation permits an
-absent Origin (the Python client) or that hostname's HTTPS origin. MCP bodies retain
-the 64 KiB cap. Access logs are disabled; invalid media-type errors do not echo/log
-the supplied header. Do not add proxy or debug logging that captures requests or tokens.
+Both modes require one exact hostname. On Render it comes from
+`RENDER_EXTERNAL_HOSTNAME`; local tests can set `ICD10_DEMO_HOSTNAME`. Origin
+validation permits an absent Origin (the Python client) or that hostname's HTTPS
+origin. Public request bodies are capped at 8 KiB; protected mode retains its
+64 KiB cap. GET `/healthz` and `/readyz` are anonymous, minimal operational probes,
+not clinical status endpoints. Access logs are disabled; invalid media-type errors
+do not echo/log the supplied header. Do not add logging that captures requests or tokens.
 
-**This is shared-secret demo access, not OAuth, Entra, per-user authorization,
-token expiry or a PHI safeguard.** Rotate the environment secret and restart if it
-is exposed. No CORS/browser UI, public signup or desktop OAuth interoperability is
-claimed. Limit sharing and usage; institution-ready authentication remains separate.
+**Neither anonymous access nor protected shared-secret access is OAuth, Entra,
+per-user authorization or a PHI safeguard.** Rotate an exposed protected-mode
+secret and restart. This is an MCP endpoint, not a browser UI. Institution-ready
+authentication remains separate.
 
 ## Local verification
 

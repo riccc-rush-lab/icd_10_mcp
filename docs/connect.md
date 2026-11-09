@@ -3,10 +3,10 @@
 **Public terminology and synthetic examples only.** Not production-, clinical- or
 PHI-ready. Never enter patient data, even to test the privacy screen.
 
-**Deployment status:** public no-login access was deployed and verified on
-2026-11-08 at commit `9aed9d9`. Ten anonymous public tool calls passed through the
-official SDK, CLI and local bridge. Subsequent repository hardening has not been
-deployed. Native client GUI checks remain manual. See [verification](verification.md).
+**Deployment status:** public no-login access and reviewed hardening are live at
+commit `def06ee`. Nine public acceptance calls passed through the official SDK,
+CLI and local bridge. Native client GUI checks remain manual.
+See [verification](verification.md#hardening-rollout).
 
 Endpoint: `https://icd10-reference-mcp.onrender.com/mcp`.
 This is an MCP interface, not a browser search page.
@@ -217,16 +217,15 @@ Public-mode defaults, shared by all callers of one process:
 - 120 HTTP requests per 60-second fixed window, not 120 tool calls.
 - Four admitted in-flight requests.
 - 8 KiB request bodies; 256 KiB response bodies.
-- A 15-second cooperative deadline for body receipt and application work.
+- A 15-second cooperative deadline for body receipt, application work and response writes.
 - Minimal GET `/healthz` and `/readyz` probes are outside admission limits.
 
 MCP initialization/notifications also consume requests. Limits reset on process
 restart and are not distributed/monthly quotas. They do not stop traffic from
 reaching the hosting provider or impose a hard CPU, socket-delivery or billing cap.
 Oversized responses are replaced, not silently truncated clinical instructions.
-The hardened repository extends that deadline to response writes and bounds
-rejection writes, with at most one extra second to attempt a pre-header timeout
-response. Those server changes are **not yet deployed**; see [SECURITY](../SECURITY.md).
+Rejection writes are bounded, with at most one extra second to attempt a pre-header
+timeout response. These controls are deployed; see [SECURITY](../SECURITY.md).
 
 The operator's zero-spend setup depends on **Free workspace/resources, no linked
 payment method, no paid add-ons/APIs, and accepting shutdown at exhausted quotas**.
